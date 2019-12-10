@@ -11,6 +11,8 @@ services:
     image: janus-centos:test
     container_name: tms-janus-centos
     network_mode: "host"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
 
   ue_client:
     build: ./ue_client
