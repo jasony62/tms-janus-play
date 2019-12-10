@@ -41,6 +41,15 @@ RUN cd /root && git clone https://github.com/meetecho/janus-gateway.git && \
 
 RUN yum -y install gstreamer*
 
-EXPOSE 8088 5002 5004
+EXPOSE 8088 8089 5002 5004
 
-ENTRYPOINT ["/root/janus-gateway/janus"]
+ENV ssl_certificate="/etc/letsencrypt/live/back.ytxytx.cn/fullchain.pem" ssl_certificate_key="/etc/letsencrypt/live/back.ytxytx.cn/privkey.pem"
+
+RUN sed -i "s/https = false/https = true/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+RUN sed -i "s/#secure_port = 8089/secure_port = 8089/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+RUN sed -i "s/#cert_pem = \"\/path\/to\/cert.pem\"/cert_pem = ${ssl_certificate}/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+RUN sed -i "s/#cert_key = \"\/path\/to\/key.pem\"/cert_key = ${ssl_certificate}/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+
+CMD ["--stun-server=stun.stunprotocol.org:3478"]
+
+ENTRYPOINT ["/opt/janus/bin/janus"]
