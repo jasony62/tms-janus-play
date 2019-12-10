@@ -1,13 +1,16 @@
 version: "3.7"
 services:
+  coturn:
+    build: ./coturn
+    image: tms-coturn-ubuntu
+    container_name: tms-coturn-ubuntu
+    network_mode: "host"
+
   janus:
     build: ./janus
     image: janus-centos:test
     container_name: tms-janus-centos
-    ports:
-      - "8088:8088"
-      - "5002:5002"
-      - "5004:5004"
+    network_mode: "host"
 
   ue_client:
     build: ./ue_client
