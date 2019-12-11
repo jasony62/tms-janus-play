@@ -11,8 +11,8 @@ services:
     image: janus-centos:test
     container_name: tms-janus-centos
     network_mode: "host"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
+    env_file:
+      - ./sample.env
     depends_on:
       - coturn
 
@@ -25,4 +25,5 @@ services:
       - "443:443"
     volumes:
       - ./ue_client/src:/usr/share/nginx/html:ro
-      - /etc/letsencrypt:/etc/letsencrypt
+    env_file:
+      - ./sample.env
