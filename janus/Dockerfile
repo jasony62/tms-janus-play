@@ -16,8 +16,9 @@ RUN rpm -Uvh  http://www.city-fan.org/ftp/contrib/yum-repo/rhel6/x86_64/city-fan
     yum -y install curl
 
 # 安装nice
-RUN cd /root && git clone https://github.com/libnice/libnice.git && \
-    cd libnice && \
+RUN cd /root && wget https://github.com/libnice/libnice/archive/0.1.16.tar.gz && \
+    tar xzfv 0.1.16.tar.gz && \
+    cd libnice-0.1.16 && \
     ./autogen.sh && \
     ./configure --prefix=/usr && \
     make && make install
@@ -32,20 +33,44 @@ RUN cd /root && wget https://github.com/cisco/libsrtp/archive/v2.2.0.tar.gz && \
 # 找到nice包
 ENV PKG_CONFIG_PATH /usr/lib/pkgconfig
 
-# 安装janus
-RUN cd /root && git clone https://github.com/meetecho/janus-gateway.git && \
-    cd janus-gateway && \
+# 插件Streaming播放外部媒体
+RUN yum -y install gstreamer*
+
+# 安装janus(v0.9.1)
+# 下载
+RUN cd /root && git clone https://github.com/meetecho/janus-gateway.git
+# 编译和安装
+RUN cd /root/janus-gateway && \
+    git checkout v0.9.1 && \
     ./autogen.sh && \
     ./configure --prefix=/opt/janus && \
     make && make install && make configs 
+# RUN cd /root/janus-gateway && \
+#     git checkout v0.8.2 && \
+#     ./autogen.sh && \
+#     ./configure --prefix=/opt/janus && \
+#     make && make install && make configs 
 
-RUN yum -y install gstreamer*
+
+# RUN cd /root && wget --tries=0 https://github.com/meetecho/janus-gateway/archive/v0.9.1.tar.gz && \
+#     tar zxfv v0.9.1.tar.gz
+# RUN cd /root/janus-gateway-0.9.1 && \
+#     ./autogen.sh && \
+#     ./configure --prefix=/opt/janus && \
+#     make && make install && make configs 
+
+# 安装Playfile插件
+ADD plugins /root/janus/plugins
+RUN cd /root/janus/plugins/playfile && \
+    ./bootstrap && \
+    ./configure --prefix=/opt/janus && \ 
+    make && make install 
 
 EXPOSE 8088 8089 5002 5004
 
-ENV ssl_certificate="" ssl_certificate_key="" stun_server=""
+ENV ssl_certificate="" ssl_certificate_key="" stun_server="" debug_level=4
 
-ADD start_janus.sh start_janus.sh
-RUN chmod +x start_janus.sh
+ADD start_janus.sh /root/start_janus.sh
+RUN chmod +x /root/start_janus.sh
 
-CMD ["./start_janus.sh"]
+CMD ["./root/start_janus.sh"]

@@ -1,29 +1,34 @@
-version: "3.7"
+version: '3.7'
 services:
   coturn:
     build: ./coturn
-    image: tms-coturn-ubuntu
-    container_name: tms-coturn-ubuntu
-    network_mode: "host"
+    image: tms-janus/coturn-ubuntu
+    container_name: tms-janus-coturn-ubuntu
+    network_mode: 'host'
 
   janus:
     build: ./janus
-    image: janus-centos:test
+    image: tms-janus/janus-centos
     container_name: tms-janus-centos
-    network_mode: "host"
+    network_mode: 'host'
     env_file:
       - ./sample.env
     depends_on:
       - coturn
 
-  ue_client:
-    build: ./ue_client
-    image: tms-janus-ue_client
-    container_name: tms-janus-ue_client
+  ffmpeg:
+    build: ./ffmpeg
+    image: tms-janus/ffmpeg
+    container_name: tms-janus-ffmpeg
+
+  ue_demo:
+    build: ./ue_demo
+    image: tms-janus/ue_demo
+    container_name: tms-janus-ue_demo
     ports:
-      - "8080:80"
-      - "443:443"
+      - '8080:80'
+      - '443:443'
     volumes:
-      - ./ue_client/src:/usr/share/nginx/html:ro
+      - ./ue_demo/src:/usr/share/nginx/html:ro
     env_file:
       - ./sample.env
