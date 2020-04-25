@@ -59,9 +59,9 @@ RUN cd /root/janus-gateway && \
 #     ./configure --prefix=/opt/janus && \
 #     make && make install && make configs 
 
-# 安装Playfile插件
+# 安装Rtprx插件
 ADD plugins /root/janus/plugins
-RUN cd /root/janus/plugins/playfile && \
+RUN cd /root/janus/plugins/rtprx && \
     ./bootstrap && \
     ./configure --prefix=/opt/janus && \ 
     make && make install 

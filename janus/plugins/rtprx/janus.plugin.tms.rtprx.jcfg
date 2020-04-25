@@ -1,0 +1,3 @@
+general: {
+    description = "This is a plugin for receiving rtp media streams."
+}

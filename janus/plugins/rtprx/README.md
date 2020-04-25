@@ -1,6 +1,6 @@
 # 概况
 
-基于 v0.9.2 版本
+基于 Janus-gateway v0.9.1 版本
 
 # 编译及安装
 
@@ -13,3 +13,5 @@
 
 make && make install # installs into {prefix}/lib/janus/plugins
 ```
+
+# API

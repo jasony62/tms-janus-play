@@ -1,18 +1,18 @@
 <template>
   <div id="app">
     <div>
-      <JanusPlayfile />
+      <JanusRtprx />
     </div>
   </div>
 </template>
 
 <script>
-import JanusPlayfile from './components/JanusPlayfile.vue'
+import JanusRtprx from './components/JanusRtprx.vue'
 
 export default {
   name: 'App',
   components: {
-    JanusPlayfile
+    JanusRtprx
   }
 }
 </script>

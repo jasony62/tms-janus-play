@@ -1,4 +1,4 @@
-AC_INIT([janus-plugin-tms-playfile], [0.0.1], [jasony62@qq.com])
+AC_INIT([janus-plugin-tms-rtprx], [0.0.1], [jasony62@qq.com])
 AM_INIT_AUTOMAKE([foreign])
 AC_ENABLE_SHARED(yes)
 AC_CONFIG_MACRO_DIR([m4])

@@ -18,49 +18,49 @@
 #include <utils.h>
 #include <ip-utils.h>
 
-#define TMS_JANUS_PLUGIN_PLAYFILE_VERSION 1
-#define TMS_JANUS_PLUGIN_PLAYFILE_VERSION_STRING "0.0.1"
-#define TMS_JANUS_PLUGIN_PLAYFILE_DESCRIPTION "play local media files"
-#define TMS_JANUS_PLUGIN_PLAYFILE_NAME "Playfile"
-#define TMS_JANUS_PLUGIN_PLAYFILE_AUTHOR "Jason Young"
-#define TMS_JANUS_PLUGIN_PLAYFILE_PACKAGE "janus.plugin.tms.playfile"
+#define TMS_JANUS_PLUGIN_RTPRX_VERSION 1
+#define TMS_JANUS_PLUGIN_RTPRX_VERSION_STRING "0.0.1"
+#define TMS_JANUS_PLUGIN_RTPRX_DESCRIPTION "receive rtp media stream"
+#define TMS_JANUS_PLUGIN_RTPRX_NAME "RtpRX"
+#define TMS_JANUS_PLUGIN_RTPRX_AUTHOR "Jason Young"
+#define TMS_JANUS_PLUGIN_RTPRX_PACKAGE "janus.plugin.tms.rtprx"
 
 janus_plugin *create(void);
-int janus_plugin_init_tms_playfile(janus_callbacks *callback, const char *config_path);
-void janus_plugin_destroy_tms_playfile(void);
-int janus_plugin_get_api_compatibility_tms_playfile(void);
-int janus_plugin_get_version_tms_playfile(void);
-const char *janus_plugin_get_version_string_tms_playfile(void);
-const char *janus_plugin_get_description_tms_playfile(void);
-const char *janus_plugin_get_name_tms_playfile(void);
-const char *janus_plugin_get_author_tms_playfile(void);
-const char *janus_plugin_get_package_tms_playfile(void);
-void janus_plugin_create_session_tms_playfile(janus_plugin_session *handle, int *error);
-struct janus_plugin_result *janus_plugin_handle_message_tms_playfile(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep);
-void janus_plugin_setup_media_tms_playfile(janus_plugin_session *handle);
-void janus_plugin_hangup_media_tms_playfile(janus_plugin_session *handle);
-void janus_plugin_destroy_session_tms_playfile(janus_plugin_session *handle, int *error);
-json_t *janus_plugin_query_session_tms_playfile(janus_plugin_session *handle);
+int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_path);
+void janus_plugin_destroy_tms_rtprx(void);
+int janus_plugin_get_api_compatibility_tms_rtprx(void);
+int janus_plugin_get_version_tms_rtprx(void);
+const char *janus_plugin_get_version_string_tms_rtprx(void);
+const char *janus_plugin_get_description_tms_rtprx(void);
+const char *janus_plugin_get_name_tms_rtprx(void);
+const char *janus_plugin_get_author_tms_rtprx(void);
+const char *janus_plugin_get_package_tms_rtprx(void);
+void janus_plugin_create_session_tms_rtprx(janus_plugin_session *handle, int *error);
+struct janus_plugin_result *janus_plugin_handle_message_tms_rtprx(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep);
+void janus_plugin_setup_media_tms_rtprx(janus_plugin_session *handle);
+void janus_plugin_hangup_media_tms_rtprx(janus_plugin_session *handle);
+void janus_plugin_destroy_session_tms_rtprx(janus_plugin_session *handle, int *error);
+json_t *janus_plugin_query_session_tms_rtprx(janus_plugin_session *handle);
 
-static janus_plugin janus_plugin_tms_playfile =
+static janus_plugin janus_plugin_tms_rtprx =
     JANUS_PLUGIN_INIT(
-            .init = janus_plugin_init_tms_playfile,
-            .destroy = janus_plugin_destroy_tms_playfile,
+            .init = janus_plugin_init_tms_rtprx,
+            .destroy = janus_plugin_destroy_tms_rtprx,
 
-            .get_api_compatibility = janus_plugin_get_api_compatibility_tms_playfile,
-            .get_version = janus_plugin_get_version_tms_playfile,
-            .get_version_string = janus_plugin_get_version_string_tms_playfile,
-            .get_description = janus_plugin_get_description_tms_playfile,
-            .get_name = janus_plugin_get_name_tms_playfile,
-            .get_author = janus_plugin_get_author_tms_playfile,
-            .get_package = janus_plugin_get_package_tms_playfile,
+            .get_api_compatibility = janus_plugin_get_api_compatibility_tms_rtprx,
+            .get_version = janus_plugin_get_version_tms_rtprx,
+            .get_version_string = janus_plugin_get_version_string_tms_rtprx,
+            .get_description = janus_plugin_get_description_tms_rtprx,
+            .get_name = janus_plugin_get_name_tms_rtprx,
+            .get_author = janus_plugin_get_author_tms_rtprx,
+            .get_package = janus_plugin_get_package_tms_rtprx,
 
-            .create_session = janus_plugin_create_session_tms_playfile,
-            .handle_message = janus_plugin_handle_message_tms_playfile,
-            .setup_media = janus_plugin_setup_media_tms_playfile,
-            .hangup_media = janus_plugin_hangup_media_tms_playfile,
-            .destroy_session = janus_plugin_destroy_session_tms_playfile,
-            .query_session = janus_plugin_query_session_tms_playfile, );
+            .create_session = janus_plugin_create_session_tms_rtprx,
+            .handle_message = janus_plugin_handle_message_tms_rtprx,
+            .setup_media = janus_plugin_setup_media_tms_rtprx,
+            .hangup_media = janus_plugin_hangup_media_tms_rtprx,
+            .destroy_session = janus_plugin_destroy_session_tms_rtprx,
+            .query_session = janus_plugin_query_session_tms_rtprx, );
 
 static void janus_streaming_hangup_media_internal(janus_plugin_session *handle);
 
@@ -83,7 +83,7 @@ typedef struct multiple_fds
     int rtcp_fd;
 } multiple_fds;
 
-typedef struct tms_playfile_rtp_keyframe
+typedef struct tms_rtprx_rtp_keyframe
 {
     gboolean enabled;
     /* If enabled, we store the packets of the last keyframe, to immediately send them for new viewers */
@@ -92,8 +92,8 @@ typedef struct tms_playfile_rtp_keyframe
     GList *temp_keyframe;
     guint32 temp_ts;
     janus_mutex mutex;
-} tms_playfile_rtp_keyframe;
-typedef struct tms_playfile_rtp_source
+} tms_rtprx_rtp_keyframe;
+typedef struct tms_rtprx_rtp_source
 {
     gint audio_port, remote_audio_port;
     gint audio_rtcp_port, remote_audio_rtcp_port;
@@ -139,7 +139,7 @@ typedef struct tms_playfile_rtp_source
     // 	gint64 reconnect_timer;
     // 	janus_mutex rtsp_mutex;
     // #endif
-    tms_playfile_rtp_keyframe keyframe;
+    tms_rtprx_rtp_keyframe keyframe;
     gboolean textdata;
     gboolean buffermsg;
     int rtp_collision;
@@ -154,8 +154,8 @@ typedef struct tms_playfile_rtp_source
     // char *srtpcrypto;
     // srtp_t srtp_ctx;
     // srtp_policy_t srtp_policy;
-} tms_playfile_rtp_source;
-typedef struct tms_playfile_codecs
+} tms_rtprx_rtp_source;
+typedef struct tms_rtprx_codecs
 {
     gint audio_pt;
     char *audio_rtpmap;
@@ -164,8 +164,8 @@ typedef struct tms_playfile_codecs
     gint video_pt;
     char *video_rtpmap;
     char *video_fmtp;
-} tms_playfile_codecs;
-typedef struct tms_playfile_mountpoint
+} tms_rtprx_codecs;
+typedef struct tms_rtprx_mountpoint
 {
     guint64 id;
     char *name;
@@ -178,19 +178,19 @@ typedef struct tms_playfile_mountpoint
     //GThread *thread; /* A mountpoint may or may not have a thread */
     void *source; /* Can differ according to the source type */
     GDestroyNotify source_destroy;
-    tms_playfile_codecs codecs;
+    tms_rtprx_codecs codecs;
     gboolean audio, video, data;
     GList *viewers; /* 关联的session列表 */
-    //int helper_threads; /* Only relevant for RTP tms_playfile_mps */
-    //GList *threads;     /* Only relevant for RTP tms_playfile_mps */
+    //int helper_threads; /* Only relevant for RTP tms_rtprx_mps */
+    //GList *threads;     /* Only relevant for RTP tms_rtprx_mps */
     volatile gint destroyed;
     janus_mutex mutex;
     janus_refcount ref;
-} tms_playfile_mountpoint;
-static GHashTable *tms_playfile_mps;
-static janus_mutex tms_playfile_mps_mutex;
+} tms_rtprx_mountpoint;
+static GHashTable *tms_rtprx_mps;
+static janus_mutex tms_rtprx_mps_mutex;
 
-static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
+static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     gboolean doaudio, uint8_t acodec, char *artpmap,
     gboolean dovideo, uint8_t vcodec, char *vrtpmap);
 
@@ -201,10 +201,10 @@ static volatile gint initialized = 0, stopping = 0;
 /**
  * 插件会话 
  */
-typedef struct tms_playfile_session
+typedef struct tms_rtprx_session
 {
     janus_plugin_session *handle;
-    tms_playfile_mountpoint *mountpoint;
+    tms_rtprx_mountpoint *mountpoint;
     gint64 sdp_sessid;
     gint64 sdp_version;
     gboolean started;
@@ -223,7 +223,7 @@ typedef struct tms_playfile_session
     volatile gint hangingup;
     volatile gint destroyed;
     janus_refcount ref;
-} tms_playfile_session;
+} tms_rtprx_session;
 // 会话表
 static GHashTable *sessions;
 static janus_mutex sessions_mutex = JANUS_MUTEX_INITIALIZER;
@@ -231,54 +231,54 @@ static janus_mutex sessions_mutex = JANUS_MUTEX_INITIALIZER;
  * 消息
  */
 static GThread *message_handler_thread;
-typedef struct tms_playfile_message
+typedef struct tms_rtprx_message
 {
     janus_plugin_session *handle;
     char *transaction;
     json_t *message;
     json_t *jsep;
-} tms_playfile_message;
+} tms_rtprx_message;
 static GAsyncQueue *messages = NULL;
-static tms_playfile_message exit_message;
+static tms_rtprx_message exit_message;
 
-static void *tms_playfile_rtp_relay_thread(void *data);
+static void *tms_rtprx_rtp_relay_thread(void *data);
 
-static void tms_playfile_session_destroy(tms_playfile_session *session)
+static void tms_rtprx_session_destroy(tms_rtprx_session *session)
 {
     if (session && g_atomic_int_compare_and_exchange(&session->destroyed, 0, 1))
         janus_refcount_decrease(&session->ref);
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成销毁会话\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁会话\n");
 }
-static void tms_playfile_session_free(const janus_refcount *session_ref)
+static void tms_rtprx_session_free(const janus_refcount *session_ref)
 {
-    tms_playfile_session *session = janus_refcount_containerof(session_ref, tms_playfile_session, ref);
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始释放会话[%p][%p]\n", session, session->mountpoint);
+    tms_rtprx_session *session = janus_refcount_containerof(session_ref, tms_rtprx_session, ref);
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放会话[%p][%p]\n", session, session->mountpoint);
     /* Remove the reference to the core plugin session */
     janus_refcount_decrease(&session->handle->ref);
     /* This session can be desftroyed, free all the resources */
     g_free(session);
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成释放会话\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放会话\n");
 }
 /* 在插件会话表中查找会话 */
-static tms_playfile_session *tms_playfile_lookup_session(janus_plugin_session *handle)
+static tms_rtprx_session *tms_rtprx_lookup_session(janus_plugin_session *handle)
 {
-    tms_playfile_session *session = NULL;
+    tms_rtprx_session *session = NULL;
     if (g_hash_table_contains(sessions, handle))
     {
-        session = (tms_playfile_session *)handle->plugin_handle;
+        session = (tms_rtprx_session *)handle->plugin_handle;
     }
     return session;
 }
 /* 释放异步消息 */
-static void tms_playfile_message_free(tms_playfile_message *msg)
+static void tms_rtprx_message_free(tms_rtprx_message *msg)
 {
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始释放异步消息\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放异步消息\n");
     if (!msg || msg == &exit_message)
         return;
 
     // if (msg->handle && msg->handle->plugin_handle)
     // {
-    //     tms_playfile_session *session = (tms_playfile_session *)msg->handle->plugin_handle;
+    //     tms_rtprx_session *session = (tms_rtprx_session *)msg->handle->plugin_handle;
     //     janus_refcount_decrease(&session->ref);
     // }
     msg->handle = NULL;
@@ -294,9 +294,9 @@ static void tms_playfile_message_free(tms_playfile_message *msg)
 
     g_free(msg);
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成释放异步消息\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放异步消息\n");
 }
-static void tms_playfile_mountpoint_destroy(tms_playfile_mountpoint *mountpoint)
+static void tms_rtprx_mountpoint_destroy(tms_rtprx_mountpoint *mountpoint)
 {
     if (!mountpoint)
         return;
@@ -304,7 +304,7 @@ static void tms_playfile_mountpoint_destroy(tms_playfile_mountpoint *mountpoint)
         return;
 
     /* If this is an RTP source, interrupt the poll */
-    // tms_playfile_rtp_source *source = mountpoint->source;
+    // tms_rtprx_rtp_source *source = mountpoint->source;
     // if (source != NULL && source->pipefd[1] > 0)
     // {
     //     int code = 1;
@@ -319,12 +319,12 @@ static void tms_playfile_mountpoint_destroy(tms_playfile_mountpoint *mountpoint)
     /* Decrease the counter */
     janus_refcount_decrease(&mountpoint->ref);
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成销毁挂载点\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁挂载点\n");
 }
-static void tms_playfile_mountpoint_free(const janus_refcount *mp_ref)
+static void tms_rtprx_mountpoint_free(const janus_refcount *mp_ref)
 {
-    tms_playfile_mountpoint *mp = janus_refcount_containerof(mp_ref, tms_playfile_mountpoint, ref);
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始释放挂载点 %p\n", mp);
+    tms_rtprx_mountpoint *mp = janus_refcount_containerof(mp_ref, tms_rtprx_mountpoint, ref);
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放挂载点 %p\n", mp);
 
     /* This mountpoint can be destroyed, free all the resources */
 
@@ -349,13 +349,13 @@ static void tms_playfile_mountpoint_free(const janus_refcount *mp_ref)
 
     g_free(mp);
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成释放挂载点\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放挂载点\n");
 }
 /* 异步消息处理 */
-static void *tms_playfile_async_message_thread(void *data)
+static void *tms_rtprx_async_message_thread(void *data)
 {
-    JANUS_LOG(LOG_VERB, "[Playfile] 启动异步消息处理线程\n");
-    tms_playfile_message *msg = NULL;
+    JANUS_LOG(LOG_VERB, "[Rtprx] 启动异步消息处理线程\n");
+    tms_rtprx_message *msg = NULL;
     json_t *root = NULL;
     while (g_atomic_int_get(&initialized))
     {
@@ -364,11 +364,11 @@ static void *tms_playfile_async_message_thread(void *data)
             break;
         if (msg->handle == NULL)
         {
-            tms_playfile_message_free(msg);
+            tms_rtprx_message_free(msg);
             continue;
         }
         janus_mutex_lock(&sessions_mutex);
-        tms_playfile_session *session = tms_playfile_lookup_session(msg->handle);
+        tms_rtprx_session *session = tms_rtprx_lookup_session(msg->handle);
         janus_refcount_increase(&session->ref);
         janus_mutex_unlock(&sessions_mutex);
 
@@ -381,7 +381,7 @@ static void *tms_playfile_async_message_thread(void *data)
         const char *request_text = json_string_value(request);
         json_t *result = NULL;
 
-        if (!strcasecmp(request_text, "connect"))
+        if (!strcasecmp(request_text, "create.webrtc"))
         {
             session->stopping = FALSE;
             session->audio = TRUE;    /* True by default */
@@ -441,13 +441,13 @@ static void *tms_playfile_async_message_thread(void *data)
             g_strlcat(sdptemp, buffer, 2048);
 
             sdp = g_strdup(sdptemp);
-            JANUS_LOG(LOG_VERB, "[Playfile] 返回[ %s ]SDP:\n%s\n", sdp_type, sdp);
+            JANUS_LOG(LOG_VERB, "[Rtprx] 返回[ %s ]SDP:\n%s\n", sdp_type, sdp);
         }
         else if (!strcasecmp(request_text, "prepare.source"))
         {
-            JANUS_LOG(LOG_VERB, "[Playfile] 请求创建RTP媒体数据源命令\n");
+            JANUS_LOG(LOG_VERB, "[Rtprx] 请求创建RTP媒体数据源命令\n");
             session->paused = FALSE;
-            tms_playfile_mountpoint *mp = tms_playfile_create_rtp_mountpoint(
+            tms_rtprx_mountpoint *mp = tms_rtprx_create_rtp_mountpoint(
                 TRUE,
                 111,
                 "opus/48000/2",
@@ -464,14 +464,17 @@ static void *tms_playfile_async_message_thread(void *data)
                 mp->viewers = g_list_append(mp->viewers, session);
                 janus_mutex_unlock(&mp->mutex);
 
-                JANUS_LOG(LOG_VERB, "[Playfile] 完成创建RTP媒体数据源命令[ %p ]\n", mp);
+                JANUS_LOG(LOG_VERB, "[Rtprx] 完成创建RTP媒体数据源命令[ %p ]\n", mp);
                 /* 返回挂载点信息 */
-                tms_playfile_rtp_source *source = mp->source;
+                tms_rtprx_rtp_source *source = mp->source;
+                json_t *ports = json_object();
+                json_object_set_new(ports, "audioport", json_integer(source->audio_port));
+                json_object_set_new(ports, "audiortcpport", json_integer(source->audio_rtcp_port));
+                json_object_set_new(ports, "videoport", json_integer(source->video_port[0]));
+                json_object_set_new(ports, "videortcpport", json_integer(source->video_rtcp_port));
                 result = json_object();
-                json_object_set_new(result, "audioport", json_integer(source->audio_port));
-                json_object_set_new(result, "audiortcpport", json_integer(source->audio_rtcp_port));
-                json_object_set_new(result, "videoport", json_integer(source->video_port[0]));
-                json_object_set_new(result, "videortcpport", json_integer(source->video_rtcp_port));
+                json_object_set_new(result, "ports", ports);
+                json_object_set_new(result, "status", json_string("mounted"));
             }
             else
             {
@@ -480,11 +483,11 @@ static void *tms_playfile_async_message_thread(void *data)
         }
         else if (!strcasecmp(request_text, "destroy.source"))
         {
-            tms_playfile_mountpoint *mp = session->mountpoint;
+            tms_rtprx_mountpoint *mp = session->mountpoint;
             if (mp)
             {
-                tms_playfile_mountpoint_destroy(mp);
-                JANUS_LOG(LOG_VERB, "[Playfile] 完成销毁RTP媒体数据源命令\n");
+                tms_rtprx_mountpoint_destroy(mp);
+                JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁RTP媒体数据源命令\n");
             }
         }
 
@@ -494,29 +497,29 @@ static void *tms_playfile_async_message_thread(void *data)
         /* Prepare JSON event */
         json_t *jsep = json_pack("{ssss}", "type", sdp_type, "sdp", sdp);
         json_t *event = json_object();
-        json_object_set_new(event, "playfile", json_string("event"));
+        json_object_set_new(event, "rtprx", json_string("event"));
         if (result != NULL)
             json_object_set_new(event, "result", result);
-        int ret = gateway->push_event(msg->handle, &janus_plugin_tms_playfile, msg->transaction, event, jsep);
-        JANUS_LOG(LOG_VERB, "[Playfile] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+        int ret = gateway->push_event(msg->handle, &janus_plugin_tms_rtprx, msg->transaction, event, jsep);
+        JANUS_LOG(LOG_VERB, "[Rtprx] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
 
         g_free(sdp);
         json_decref(event);
         json_decref(jsep);
-        tms_playfile_message_free(msg);
+        tms_rtprx_message_free(msg);
 
-        JANUS_LOG(LOG_VERB, "[Playfile] 完成消息处理\n");
+        JANUS_LOG(LOG_VERB, "[Rtprx] 完成消息处理\n");
 
         continue;
     }
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 离开插件消息处理线程\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 离开插件消息处理线程\n");
     return NULL;
 }
 /**
  * 接收外部媒体
 */
-typedef struct tms_playfile_rtp_relay_packet
+typedef struct tms_rtprx_rtp_relay_packet
 {
     janus_rtp_header *data;
     gint length;
@@ -535,12 +538,12 @@ typedef struct tms_playfile_rtp_relay_packet
     uint8_t pbit, dbit, ubit, bbit, ebit;
     /* The following is only relevant for datachannels */
     gboolean textdata;
-} tms_playfile_rtp_relay_packet;
-static tms_playfile_rtp_relay_packet exit_packet;
+} tms_rtprx_rtp_relay_packet;
+static tms_rtprx_rtp_relay_packet exit_packet;
 
-static void tms_playfile_rtp_source_free(tms_playfile_rtp_source *source);
+static void tms_rtprx_rtp_source_free(tms_rtprx_rtp_source *source);
 
-static void tms_playfile_rtp_relay_packet_free(tms_playfile_rtp_relay_packet *pkt)
+static void tms_rtprx_rtp_relay_packet_free(tms_rtprx_rtp_relay_packet *pkt)
 {
     if (pkt == NULL || pkt == &exit_packet)
         return;
@@ -549,7 +552,7 @@ static void tms_playfile_rtp_relay_packet_free(tms_playfile_rtp_relay_packet *pk
 }
 
 /* Helpers to create a listener filedescriptor */
-static int tms_playfile_create_fd(int port, const char *listenername, const char *medianame, gboolean quiet)
+static int tms_rtprx_create_fd(int port, const char *listenername, const char *medianame, gboolean quiet)
 {
     janus_mutex_lock(&fd_mutex);
     struct sockaddr_in address = {0};
@@ -653,7 +656,7 @@ static int tms_playfile_create_fd(int port, const char *listenername, const char
     janus_mutex_unlock(&fd_mutex);
     return fd;
 }
-static int tms_playfile_get_fd_port(int fd)
+static int tms_rtprx_get_fd_port(int fd)
 {
     struct sockaddr_in server;
     socklen_t len = sizeof(server);
@@ -665,8 +668,8 @@ static int tms_playfile_get_fd_port(int fd)
     return ntohs(server.sin_port);
 }
 /* Helper to bind RTP/RTCP port pair */
-static int tms_playfile_allocate_port_pair(const char *name, const char *media,
-                                           multiple_fds *fds, int ports[2])
+static int tms_rtprx_allocate_port_pair(const char *name, const char *media,
+                                        multiple_fds *fds, int ports[2])
 {
     /* Start from the global slider */
     uint16_t rtp_port_next = rtp_range_slider;
@@ -697,10 +700,10 @@ static int tms_playfile_allocate_port_pair(const char *name, const char *media,
             rtp_port_next = rtp_range_min;
             rtp_port_wrap = TRUE;
         }
-        rtp_fd = tms_playfile_create_fd(rtp_port, media, name, TRUE);
+        rtp_fd = tms_rtprx_create_fd(rtp_port, media, name, TRUE);
         if (rtp_fd != -1)
         {
-            rtcp_fd = tms_playfile_create_fd(rtcp_port, media, name, TRUE);
+            rtcp_fd = tms_rtprx_create_fd(rtcp_port, media, name, TRUE);
             if (rtcp_fd != -1)
             {
                 /* Done */
@@ -719,12 +722,12 @@ static int tms_playfile_allocate_port_pair(const char *name, const char *media,
     }
     return -1;
 }
-static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
+static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     gboolean doaudio, uint8_t acodec, char *artpmap,
     gboolean dovideo, uint8_t vcodec, char *vrtpmap)
 {
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始创建挂载点\n");
-    janus_mutex_lock(&tms_playfile_mps_mutex);
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始创建挂载点\n");
+    janus_mutex_lock(&tms_rtprx_mps_mutex);
 
     uint16_t aport = 0, artcpport = 0;
     int audio_fd = -1;
@@ -734,7 +737,7 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
     {
         int aports[2];
         multiple_fds audio_fds = {-1, -1};
-        if (tms_playfile_allocate_port_pair("Audio", "audio", &audio_fds, aports))
+        if (tms_rtprx_allocate_port_pair("Audio", "audio", &audio_fds, aports))
         {
             JANUS_LOG(LOG_ERR, "Bind failed for...\n");
             return NULL;
@@ -744,16 +747,16 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
         int audio_fd = audio_fds.fd;
         int audio_rtcp_fd = audio_fds.rtcp_fd;
 
-        // audio_fd = tms_playfile_create_fd(aport, "Audio", "audio");
+        // audio_fd = tms_rtprx_create_fd(aport, "Audio", "audio");
         // if (audio_fd < 0)
         // {
         //     JANUS_LOG(LOG_ERR, "Can't bind to port %d for audio...\n", aport);
         //     return NULL;
         // }
-        // aport = tms_playfile_get_fd_port(audio_fd);
+        // aport = tms_rtprx_get_fd_port(audio_fd);
         // if (artcpport > 0)
         // {
-        //     audio_rtcp_fd = tms_playfile_create_fd(artcpport, "Audio", "audio");
+        //     audio_rtcp_fd = tms_rtprx_create_fd(artcpport, "Audio", "audio");
         //     if (audio_rtcp_fd < 0)
         //     {
         //         JANUS_LOG(LOG_ERR, "Can't bind to port %d for audio rtcp...\n", aport + 1);
@@ -770,7 +773,7 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
     {
         int vports[2];
         multiple_fds video_fds = {-1, -1};
-        if (tms_playfile_allocate_port_pair("Video", "video", &video_fds, vports))
+        if (tms_rtprx_allocate_port_pair("Video", "video", &video_fds, vports))
         {
             JANUS_LOG(LOG_ERR, "Bind failed for...\n");
             return NULL;
@@ -779,7 +782,7 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
         vrtcpport = vports[1];
         video_fd[0] = video_fds.fd;
         video_rtcp_fd = video_fds.rtcp_fd;
-        // video_fd[0] = tms_playfile_create_fd(vport, "Video", "video");
+        // video_fd[0] = tms_rtprx_create_fd(vport, "Video", "video");
         // if (video_fd[0] < 0)
         // {
         //     JANUS_LOG(LOG_ERR, "Can't bind to port %d for video...\n", vport);
@@ -789,10 +792,10 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
         //         close(audio_rtcp_fd);
         //     return NULL;
         // }
-        // vport = tms_playfile_get_fd_port(video_fd[0]);
+        // vport = tms_rtprx_get_fd_port(video_fd[0]);
         // if (vrtcpport > 0)
         // {
-        //     video_rtcp_fd = tms_playfile_create_fd(vrtcpport, "Video", "video");
+        //     video_rtcp_fd = tms_rtprx_create_fd(vrtcpport, "Video", "video");
         //     if (video_rtcp_fd < 0)
         //     {
         //         JANUS_LOG(LOG_ERR, "Can't bind to port %d for video rtcp...\n", vport + 1);
@@ -806,14 +809,14 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
         //     }
         // }
     }
-    tms_playfile_mountpoint *mp = g_malloc0(sizeof(tms_playfile_mountpoint));
+    tms_rtprx_mountpoint *mp = g_malloc0(sizeof(tms_rtprx_mountpoint));
     mp->id = 1;
-    mp->name = "playfile-mp";
+    mp->name = "rtprx-mp";
     mp->active = FALSE;
     mp->enabled = TRUE;
     mp->audio = doaudio;
     mp->video = dovideo;
-    tms_playfile_rtp_source *mp_rtp_source = g_malloc0(sizeof(tms_playfile_rtp_source));
+    tms_rtprx_rtp_source *mp_rtp_source = g_malloc0(sizeof(tms_rtprx_rtp_source));
 
     mp_rtp_source->audio_port = doaudio ? aport : -1;
     mp_rtp_source->audio_rtcp_port = artcpport;
@@ -834,7 +837,7 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
     //pipe(mp_rtp_source->pipefd);
     mp->source = mp_rtp_source;
 
-    mp->source_destroy = (GDestroyNotify)tms_playfile_rtp_source_free;
+    mp->source_destroy = (GDestroyNotify)tms_rtprx_rtp_source_free;
     mp->codecs.audio_pt = doaudio ? acodec : -1;
     mp->codecs.audio_rtpmap = doaudio ? g_strdup(artpmap) : NULL;
     mp->codecs.audio_fmtp = NULL;
@@ -855,30 +858,30 @@ static tms_playfile_mountpoint *tms_playfile_create_rtp_mountpoint(
 
     g_atomic_int_set(&mp->destroyed, 0);
     janus_mutex_init(&mp->mutex);
-    janus_refcount_init(&mp->ref, tms_playfile_mountpoint_free); // 哈希表内使用，引用加1
-    g_hash_table_insert(tms_playfile_mps, janus_uint64_dup(mp->id), mp);
-    janus_mutex_unlock(&tms_playfile_mps_mutex);
+    janus_refcount_init(&mp->ref, tms_rtprx_mountpoint_free); // 哈希表内使用，引用加1
+    g_hash_table_insert(tms_rtprx_mps, janus_uint64_dup(mp->id), mp);
+    janus_mutex_unlock(&tms_rtprx_mps_mutex);
 
     // 启动接收RTP Packet线程
     GError *error = NULL;
     janus_refcount_increase(&mp->ref); // 线程内使用，引用加1
-    g_thread_try_new("rtp thread-1", &tms_playfile_rtp_relay_thread, mp, &error);
+    g_thread_try_new("rtp thread-1", &tms_rtprx_rtp_relay_thread, mp, &error);
     if (error != NULL)
     {
         JANUS_LOG(LOG_ERR, "Got error %d (%s) trying to launch the RTP thread...\n", error->code, error->message ? error->message : "??");
         janus_refcount_decrease(&mp->ref); /* This is for the failed thread */
-        tms_playfile_mountpoint_destroy(mp);
+        tms_rtprx_mountpoint_destroy(mp);
         return NULL;
     }
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成创建挂载点 [ %p ]\n", mp);
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成创建挂载点 [ %p ]\n", mp);
 
     return mp;
 }
 /* Helpers to destroy a streaming mountpoint. */
-static void tms_playfile_rtp_source_free(tms_playfile_rtp_source *source)
+static void tms_rtprx_rtp_source_free(tms_rtprx_rtp_source *source)
 {
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始释放挂载点RTP源\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放挂载点RTP源\n");
     if (source->audio_fd > -1)
     {
         close(source->audio_fd);
@@ -917,41 +920,41 @@ static void tms_playfile_rtp_source_free(tms_playfile_rtp_source *source)
     // }
     janus_mutex_lock(&source->keyframe.mutex);
     if (source->keyframe.latest_keyframe != NULL)
-        g_list_free_full(source->keyframe.latest_keyframe, (GDestroyNotify)tms_playfile_rtp_relay_packet_free);
+        g_list_free_full(source->keyframe.latest_keyframe, (GDestroyNotify)tms_rtprx_rtp_relay_packet_free);
     source->keyframe.latest_keyframe = NULL;
     janus_mutex_unlock(&source->keyframe.mutex);
     janus_mutex_lock(&source->buffermsg_mutex);
     if (source->last_msg != NULL)
-        tms_playfile_rtp_relay_packet_free((tms_playfile_rtp_relay_packet *)source->last_msg);
+        tms_rtprx_rtp_relay_packet_free((tms_rtprx_rtp_relay_packet *)source->last_msg);
     source->last_msg = NULL;
     janus_mutex_unlock(&source->buffermsg_mutex);
     g_free(source);
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成释放挂载点RTP源\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放挂载点RTP源\n");
 }
 /* */
-static void tms_playfile_relay_rtp_packet(gpointer data, gpointer user_data)
+static void tms_rtprx_relay_rtp_packet(gpointer data, gpointer user_data)
 {
-    JANUS_LOG(LOG_VERB, "[Playfile] 执行转发RTP包\n");
-    tms_playfile_rtp_relay_packet *packet = (tms_playfile_rtp_relay_packet *)user_data;
+    JANUS_LOG(LOG_VERB, "[Rtprx] 执行转发RTP包\n");
+    tms_rtprx_rtp_relay_packet *packet = (tms_rtprx_rtp_relay_packet *)user_data;
     if (!packet || !packet->data || packet->length < 1)
     {
         JANUS_LOG(LOG_ERR, "Invalid packet...\n");
         return;
     }
-    tms_playfile_session *session = (tms_playfile_session *)data;
+    tms_rtprx_session *session = (tms_rtprx_session *)data;
     if (!session)
     {
-        JANUS_LOG(LOG_ERR, "[Playfile] 没有传递会话\n");
+        JANUS_LOG(LOG_ERR, "[Rtprx] 没有传递会话\n");
     }
     if (!session->handle)
     {
-        JANUS_LOG(LOG_ERR, "[Playfile] 会话数据不完整\n");
+        JANUS_LOG(LOG_ERR, "[Rtprx] 会话数据不完整\n");
         return;
     }
     if (!packet->is_keyframe && (!session->started || session->paused))
     {
-        JANUS_LOG(LOG_ERR, "[Playfile] 会话不是启用状态，无法转发\n");
+        JANUS_LOG(LOG_ERR, "[Rtprx] 会话不是启用状态，无法转发\n");
         return;
     }
 
@@ -1251,15 +1254,15 @@ static void tms_playfile_relay_rtp_packet(gpointer data, gpointer user_data)
     return;
 }
 
-static void tms_playfile_relay_rtcp_packet(gpointer data, gpointer user_data)
+static void tms_rtprx_relay_rtcp_packet(gpointer data, gpointer user_data)
 {
-    tms_playfile_rtp_relay_packet *packet = (tms_playfile_rtp_relay_packet *)user_data;
+    tms_rtprx_rtp_relay_packet *packet = (tms_rtprx_rtp_relay_packet *)user_data;
     if (!packet || !packet->data || packet->length < 1)
     {
         JANUS_LOG(LOG_ERR, "Invalid packet...\n");
         return;
     }
-    tms_playfile_session *session = (tms_playfile_session *)data;
+    tms_rtprx_session *session = (tms_rtprx_session *)data;
     if (!session || !session->handle)
     {
         //~ JANUS_LOG(LOG_ERR, "Invalid session...\n");
@@ -1279,17 +1282,17 @@ static void tms_playfile_relay_rtcp_packet(gpointer data, gpointer user_data)
 }
 
 /* 接收外部媒体文件RTP帧的线程 */
-static void *tms_playfile_rtp_relay_thread(void *data)
+static void *tms_rtprx_rtp_relay_thread(void *data)
 {
-    JANUS_LOG(LOG_INFO, "[Playfile] 启动数据源RTP包接收转发线程\n");
+    JANUS_LOG(LOG_INFO, "[Rtprx] 启动数据源RTP包接收转发线程\n");
 
-    tms_playfile_mountpoint *mountpoint = (tms_playfile_mountpoint *)data;
+    tms_rtprx_mountpoint *mountpoint = (tms_rtprx_mountpoint *)data;
     if (!mountpoint)
     {
         JANUS_LOG(LOG_ERR, "Invalid mountpoint!\n");
         return NULL;
     }
-    tms_playfile_rtp_source *source = mountpoint->source;
+    tms_rtprx_rtp_source *source = mountpoint->source;
     if (source == NULL)
     {
         JANUS_LOG(LOG_ERR, "[%s] Invalid RTP source mountpoint!\n", mountpoint->name);
@@ -1315,7 +1318,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
     memset(buffer, 0, 1500);
     /* Loop */
     int num = 0;
-    tms_playfile_rtp_relay_packet packet;
+    tms_rtprx_rtp_relay_packet packet;
     while (!g_atomic_int_get(&stopping) && !g_atomic_int_get(&mountpoint->destroyed))
     {
         /* Prepare poll */
@@ -1369,7 +1372,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
             fds[num].revents = 0;
             num++;
         }
-        JANUS_LOG(LOG_VERB, "[Playfile] 数据源RTP包接收线程，监听端口数[ %d ]\n", num);
+        JANUS_LOG(LOG_VERB, "[Rtprx] 数据源RTP包接收线程，监听端口数[ %d ]\n", num);
         /* Wait for some data */
         resfd = poll(fds, num, 1000);
         if (resfd < 0)
@@ -1456,9 +1459,9 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                     packet.timestamp = ntohl(packet.data->timestamp);
                     packet.seq_number = ntohs(packet.data->seq_number);
                     /* Go! */
-                    JANUS_LOG(LOG_VERB, "[Playfile] 数据源RTP包接收线程，转发audio\n");
+                    JANUS_LOG(LOG_VERB, "[Rtprx] 数据源RTP包接收线程，转发audio\n");
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_playfile_relay_rtp_packet, &packet);
+                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtp_packet, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                     continue;
                 }
@@ -1500,7 +1503,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                             source->keyframe.temp_ts = 0;
                             janus_mutex_lock(&source->keyframe.mutex);
                             if (source->keyframe.latest_keyframe != NULL)
-                                g_list_free_full(source->keyframe.latest_keyframe, (GDestroyNotify)tms_playfile_rtp_relay_packet_free);
+                                g_list_free_full(source->keyframe.latest_keyframe, (GDestroyNotify)tms_rtprx_rtp_relay_packet_free);
                             source->keyframe.latest_keyframe = source->keyframe.temp_keyframe;
                             source->keyframe.temp_keyframe = NULL;
                             janus_mutex_unlock(&source->keyframe.mutex);
@@ -1510,7 +1513,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                             /* Part of the keyframe we're currently saving, store */
                             janus_mutex_lock(&source->keyframe.mutex);
                             JANUS_LOG(LOG_HUGE, "[%s] ... other part of keyframe received! ts=%" SCNu32 "\n", name, source->keyframe.temp_ts);
-                            tms_playfile_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_playfile_rtp_relay_packet));
+                            tms_rtprx_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_rtprx_rtp_relay_packet));
                             pkt->data = g_malloc(bytes);
                             memcpy(pkt->data, buffer, bytes);
                             pkt->data->ssrc = htons(1);
@@ -1557,7 +1560,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                                     source->keyframe.temp_ts = ntohl(rtp->timestamp);
                                     JANUS_LOG(LOG_HUGE, "[%s] New keyframe received! ts=%" SCNu32 "\n", name, source->keyframe.temp_ts);
                                     janus_mutex_lock(&source->keyframe.mutex);
-                                    tms_playfile_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_playfile_rtp_relay_packet));
+                                    tms_rtprx_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_rtprx_rtp_relay_packet));
                                     pkt->data = g_malloc(bytes);
                                     memcpy(pkt->data, buffer, bytes);
                                     pkt->data->ssrc = htons(1);
@@ -1636,15 +1639,15 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                     packet.timestamp = ntohl(packet.data->timestamp);
                     packet.seq_number = ntohs(packet.data->seq_number);
                     /* Go! */
-                    JANUS_LOG(LOG_VERB, "[Playfile] 数据源RTP包接收线程，转发video\n");
+                    JANUS_LOG(LOG_VERB, "[Rtprx] 数据源RTP包接收线程，转发video\n");
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_playfile_relay_rtp_packet, &packet);
+                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtp_packet, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                     continue;
                 }
                 else if (audio_rtcp_fd != -1 && fds[i].fd == audio_rtcp_fd)
                 {
-                    JANUS_LOG(LOG_VERB, "[Playfile] 转发线程 audio-rtcp");
+                    JANUS_LOG(LOG_VERB, "[Rtprx] 转发线程 audio-rtcp");
                     addrlen = sizeof(remote);
                     bytes = recvfrom(audio_rtcp_fd, buffer, 1500, 0, &remote, &addrlen);
                     if (!janus_is_rtcp(buffer, bytes))
@@ -1661,12 +1664,12 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                     packet.length = bytes;
                     /* Go! */
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_playfile_relay_rtcp_packet, &packet);
+                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtcp_packet, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                 }
                 else if (video_rtcp_fd != -1 && fds[i].fd == video_rtcp_fd)
                 {
-                    JANUS_LOG(LOG_VERB, "[Playfile] 转发线程-2 video-rtcp");
+                    JANUS_LOG(LOG_VERB, "[Rtprx] 转发线程-2 video-rtcp");
                     addrlen = sizeof(remote);
                     bytes = recvfrom(video_rtcp_fd, buffer, 1500, 0, &remote, &addrlen);
                     if (!janus_is_rtcp(buffer, bytes))
@@ -1683,37 +1686,37 @@ static void *tms_playfile_rtp_relay_thread(void *data)
                     packet.length = bytes;
                     /* Go! */
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_playfile_relay_rtcp_packet, &packet);
+                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtcp_packet, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                 }
             }
         }
     }
-    JANUS_LOG(LOG_VERB, "[Playfile] 开始结束RTP转发线程\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始结束RTP转发线程\n");
     /* Notify users this mountpoint is done */
     janus_mutex_lock(&mountpoint->mutex);
     GList *viewer = g_list_first(mountpoint->viewers);
     /* Prepare JSON event */
     json_t *event = json_object();
-    json_object_set_new(event, "playfile", json_string("event"));
+    json_object_set_new(event, "rtprx", json_string("event"));
     json_t *result = json_object();
     json_object_set_new(result, "status", json_string("stopped"));
     json_object_set_new(event, "result", result);
     while (viewer)
     {
-        JANUS_LOG(LOG_VERB, "[Playfile] 开始关闭RTP转发线程关联的会话\n");
-        tms_playfile_session *session = (tms_playfile_session *)viewer->data;
+        JANUS_LOG(LOG_VERB, "[Rtprx] 开始关闭RTP转发线程关联的会话\n");
+        tms_rtprx_session *session = (tms_rtprx_session *)viewer->data;
         if (session != NULL)
         {
             session->stopping = TRUE;
             session->started = FALSE;
             session->paused = FALSE;
-            JANUS_LOG(LOG_VERB, "[Playfile][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
+            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
             session->mountpoint = NULL;
-            JANUS_LOG(LOG_VERB, "[Playfile][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
+            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
             /* Tell the core to tear down the PeerConnection, hangup_media will do the rest */
-            gateway->push_event(session->handle, &janus_plugin_tms_playfile, NULL, event, NULL);
-            JANUS_LOG(LOG_VERB, "[Playfile][session: %p ] 调用关闭WebRTC连接\n", session);
+            gateway->push_event(session->handle, &janus_plugin_tms_rtprx, NULL, event, NULL);
+            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ] 调用关闭WebRTC连接\n", session);
             gateway->close_pc(session->handle);
             janus_refcount_decrease(&session->ref);
             janus_refcount_decrease(&mountpoint->ref);
@@ -1727,7 +1730,7 @@ static void *tms_playfile_rtp_relay_thread(void *data)
     g_free(name);
     janus_refcount_decrease(&mountpoint->ref);
 
-    JANUS_LOG(LOG_VERB, "[Playfile] 完成关闭RTP转发线程\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成关闭RTP转发线程\n");
 
     return NULL;
 }
@@ -1736,41 +1739,41 @@ static void *tms_playfile_rtp_relay_thread(void *data)
  **************************************/
 janus_plugin *create(void)
 {
-    JANUS_LOG(LOG_VERB, "创建插件 %s\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME);
-    return &janus_plugin_tms_playfile;
+    JANUS_LOG(LOG_VERB, "创建插件 %s\n", TMS_JANUS_PLUGIN_RTPRX_NAME);
+    return &janus_plugin_tms_rtprx;
 }
 
 /* 初始化插件 */
-int janus_plugin_init_tms_playfile(janus_callbacks *callback, const char *config_path)
+int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_path)
 {
     if (callback == NULL || config_path == NULL)
     {
         return -1;
     }
 
-    tms_playfile_mps = g_hash_table_new_full(g_int64_hash, g_int64_equal, (GDestroyNotify)g_free, (GDestroyNotify)tms_playfile_mountpoint_destroy);
+    tms_rtprx_mps = g_hash_table_new_full(g_int64_hash, g_int64_equal, (GDestroyNotify)g_free, (GDestroyNotify)tms_rtprx_mountpoint_destroy);
 
     g_atomic_int_set(&initialized, 1);
 
-    sessions = g_hash_table_new_full(NULL, NULL, NULL, (GDestroyNotify)tms_playfile_session_destroy);
-    messages = g_async_queue_new_full((GDestroyNotify)tms_playfile_message_free);
+    sessions = g_hash_table_new_full(NULL, NULL, NULL, (GDestroyNotify)tms_rtprx_session_destroy);
+    messages = g_async_queue_new_full((GDestroyNotify)tms_rtprx_message_free);
     /* This is the callback we'll need to invoke to contact the Janus core */
     gateway = callback;
 
     /* Launch the thread that will handle incoming messages */
     GError *error = NULL;
-    message_handler_thread = g_thread_try_new("playfile handler", tms_playfile_async_message_thread, NULL, &error);
+    message_handler_thread = g_thread_try_new("Rtprx handler", tms_rtprx_async_message_thread, NULL, &error);
     if (error != NULL)
     {
         g_atomic_int_set(&initialized, 0);
-        JANUS_LOG(LOG_ERR, "Got error %d (%s) trying to launch the Playfile handler thread...\n", error->code, error->message ? error->message : "??");
+        JANUS_LOG(LOG_ERR, "Got error %d (%s) trying to launch the Rtprx handler thread...\n", error->code, error->message ? error->message : "??");
         return -1;
     }
-    JANUS_LOG(LOG_INFO, "[%s] 完成初始化( %p )\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME, gateway);
+    JANUS_LOG(LOG_INFO, "[%s] 完成初始化( %p )\n", TMS_JANUS_PLUGIN_RTPRX_NAME, gateway);
     return 0;
 }
 /* 销毁插件 */
-void janus_plugin_destroy_tms_playfile(void)
+void janus_plugin_destroy_tms_rtprx(void)
 {
     if (!g_atomic_int_get(&initialized))
         return;
@@ -1790,52 +1793,52 @@ void janus_plugin_destroy_tms_playfile(void)
     messages = NULL;
 
     g_atomic_int_set(&initialized, 0);
-    JANUS_LOG(LOG_INFO, "销毁插件 %s\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME);
+    JANUS_LOG(LOG_INFO, "销毁插件 %s\n", TMS_JANUS_PLUGIN_RTPRX_NAME);
 }
 
-int janus_plugin_get_api_compatibility_tms_playfile(void)
+int janus_plugin_get_api_compatibility_tms_rtprx(void)
 {
     return JANUS_PLUGIN_API_VERSION;
 }
 
-int janus_plugin_get_version_tms_playfile(void)
+int janus_plugin_get_version_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_VERSION;
+    return TMS_JANUS_PLUGIN_RTPRX_VERSION;
 }
 
-const char *janus_plugin_get_version_string_tms_playfile(void)
+const char *janus_plugin_get_version_string_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_VERSION_STRING;
+    return TMS_JANUS_PLUGIN_RTPRX_VERSION_STRING;
 }
 
-const char *janus_plugin_get_description_tms_playfile(void)
+const char *janus_plugin_get_description_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_DESCRIPTION;
+    return TMS_JANUS_PLUGIN_RTPRX_DESCRIPTION;
 }
 
-const char *janus_plugin_get_name_tms_playfile(void)
+const char *janus_plugin_get_name_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_NAME;
+    return TMS_JANUS_PLUGIN_RTPRX_NAME;
 }
 
-const char *janus_plugin_get_author_tms_playfile(void)
+const char *janus_plugin_get_author_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_AUTHOR;
+    return TMS_JANUS_PLUGIN_RTPRX_AUTHOR;
 }
 
-const char *janus_plugin_get_package_tms_playfile(void)
+const char *janus_plugin_get_package_tms_rtprx(void)
 {
-    return TMS_JANUS_PLUGIN_PLAYFILE_PACKAGE;
+    return TMS_JANUS_PLUGIN_RTPRX_PACKAGE;
 }
 /* 建立新会话 */
-void janus_plugin_create_session_tms_playfile(janus_plugin_session *handle, int *error)
+void janus_plugin_create_session_tms_rtprx(janus_plugin_session *handle, int *error)
 {
     if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
     {
         *error = -1;
         return;
     }
-    tms_playfile_session *session = g_malloc0(sizeof(tms_playfile_session));
+    tms_rtprx_session *session = g_malloc0(sizeof(tms_rtprx_session));
     session->handle = handle;
     session->mountpoint = NULL;
     session->started = FALSE; /* This will happen later */
@@ -1843,31 +1846,31 @@ void janus_plugin_create_session_tms_playfile(janus_plugin_session *handle, int 
     g_atomic_int_set(&session->destroyed, 0);
     g_atomic_int_set(&session->hangingup, 0);
     handle->plugin_handle = session;
-    janus_refcount_init(&session->ref, tms_playfile_session_free);
+    janus_refcount_init(&session->ref, tms_rtprx_session_free);
 
     janus_mutex_lock(&sessions_mutex);
     g_hash_table_insert(sessions, handle, session);
     janus_mutex_unlock(&sessions_mutex);
 
-    JANUS_LOG(LOG_VERB, "[Janus][Playfile] 完成创建会话[%p][%p]\n", session, session->mountpoint);
+    JANUS_LOG(LOG_VERB, "[Janus][Rtprx] 完成创建会话[%p][%p]\n", session, session->mountpoint);
 
     return;
 }
 /* 销毁会话 */
-void janus_plugin_destroy_session_tms_playfile(janus_plugin_session *handle, int *error)
+void janus_plugin_destroy_session_tms_rtprx(janus_plugin_session *handle, int *error)
 {
-    JANUS_LOG(LOG_VERB, "[Janus][Playfile] 开始销毁会话\n");
+    JANUS_LOG(LOG_VERB, "[Janus][Rtprx] 开始销毁会话\n");
     if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
     {
         *error = -1;
         return;
     }
     janus_mutex_lock(&sessions_mutex);
-    tms_playfile_session *session = tms_playfile_lookup_session(handle);
+    tms_rtprx_session *session = tms_rtprx_lookup_session(handle);
     if (!session)
     {
         janus_mutex_unlock(&sessions_mutex);
-        JANUS_LOG(LOG_ERR, "[Playfile] 没有找到和当前Janus会话关联的会话\n");
+        JANUS_LOG(LOG_ERR, "[Rtprx] 没有找到和当前Janus会话关联的会话\n");
         *error = -2;
         return;
     }
@@ -1875,17 +1878,17 @@ void janus_plugin_destroy_session_tms_playfile(janus_plugin_session *handle, int
     g_hash_table_remove(sessions, handle);
     janus_mutex_unlock(&sessions_mutex);
 
-    JANUS_LOG(LOG_VERB, "[Janus][Playfile] 完成销毁会话\n");
+    JANUS_LOG(LOG_VERB, "[Janus][Rtprx] 完成销毁会话\n");
 
     return;
 }
 /* 不知道有什么用？ */
-json_t *janus_plugin_query_session_tms_playfile(janus_plugin_session *handle)
+json_t *janus_plugin_query_session_tms_rtprx(janus_plugin_session *handle)
 {
     return NULL;
 }
 
-struct janus_plugin_result *janus_plugin_handle_message_tms_playfile(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep)
+struct janus_plugin_result *janus_plugin_handle_message_tms_rtprx(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep)
 {
     json_t *root = message;
     json_t *response = NULL;
@@ -1893,28 +1896,28 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_playfile(janus_plugi
     json_t *request = json_object_get(root, "request");
     const char *request_text = json_string_value(request);
 
-    if (!strcasecmp(request_text, "connect") || !strcasecmp(request_text, "prepare.source") || !strcasecmp(request_text, "destroy.source"))
+    if (!strcasecmp(request_text, "create.webrtc") || !strcasecmp(request_text, "prepare.source") || !strcasecmp(request_text, "destroy.source"))
     {
-        tms_playfile_message *msg = g_malloc(sizeof(tms_playfile_message));
+        tms_rtprx_message *msg = g_malloc(sizeof(tms_rtprx_message));
         msg->handle = handle;
         msg->transaction = transaction;
         msg->message = root;
         msg->jsep = jsep;
 
-        JANUS_LOG(LOG_VERB, "[Playfile] 收到客户端请求[%s][%s]，进入队列等待处理\n", request_text, msg->transaction);
+        JANUS_LOG(LOG_VERB, "[Rtprx] 收到客户端请求[%s][%s]，进入队列等待处理\n", request_text, msg->transaction);
         g_async_queue_push(messages, msg);
     }
 
     return janus_plugin_result_new(JANUS_PLUGIN_OK_WAIT, NULL, NULL);
 }
 /* a callback to notify you the peer PeerConnection is now ready to be used */
-void janus_plugin_setup_media_tms_playfile(janus_plugin_session *handle)
+void janus_plugin_setup_media_tms_rtprx(janus_plugin_session *handle)
 {
-    JANUS_LOG(LOG_INFO, "[%s-%p] WebRTC连接已可用\n", TMS_JANUS_PLUGIN_PLAYFILE_PACKAGE, handle);
+    JANUS_LOG(LOG_INFO, "[%s-%p] WebRTC连接已可用\n", TMS_JANUS_PLUGIN_RTPRX_PACKAGE, handle);
     if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
         return;
     janus_mutex_lock(&sessions_mutex);
-    tms_playfile_session *session = tms_playfile_lookup_session(handle);
+    tms_rtprx_session *session = tms_rtprx_lookup_session(handle);
     if (!session)
     {
         janus_mutex_unlock(&sessions_mutex);
@@ -1934,11 +1937,11 @@ void janus_plugin_setup_media_tms_playfile(janus_plugin_session *handle)
 
     /* Prepare JSON event */
     json_t *event = json_object();
-    json_object_set_new(event, "playfile", json_string("event"));
+    json_object_set_new(event, "rtprx", json_string("event"));
     json_t *result = json_object();
     json_object_set_new(result, "status", json_string("started"));
     json_object_set_new(event, "result", result);
-    int ret = gateway->push_event(handle, &janus_plugin_tms_playfile, NULL, event, NULL);
+    int ret = gateway->push_event(handle, &janus_plugin_tms_rtprx, NULL, event, NULL);
     JANUS_LOG(LOG_VERB, "  >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
     json_decref(event);
     janus_refcount_decrease(&session->ref);
@@ -1946,10 +1949,10 @@ void janus_plugin_setup_media_tms_playfile(janus_plugin_session *handle)
 
 static void janus_streaming_hangup_media_internal(janus_plugin_session *handle)
 {
-    JANUS_LOG(LOG_VERB, "[%s-%p] 开始释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME, handle);
+    JANUS_LOG(LOG_VERB, "[%s-%p] 开始释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_RTPRX_NAME, handle);
     if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
         return;
-    tms_playfile_session *session = tms_playfile_lookup_session(handle);
+    tms_rtprx_session *session = tms_rtprx_lookup_session(handle);
     if (!session)
     {
         JANUS_LOG(LOG_ERR, "No session associated with this handle...\n");
@@ -1972,8 +1975,8 @@ static void janus_streaming_hangup_media_internal(janus_plugin_session *handle)
     session->stopping = TRUE;
     session->started = FALSE;
     session->paused = FALSE;
-    tms_playfile_mountpoint *mp = session->mountpoint;
-    JANUS_LOG(LOG_VERB, "[Playfile] 释放WebTRC挂断后的会话关联的挂载点[%p][%p]\n", session, mp);
+    tms_rtprx_mountpoint *mp = session->mountpoint;
+    JANUS_LOG(LOG_VERB, "[Rtprx] 释放WebTRC挂断后的会话关联的挂载点[%p][%p]\n", session, mp);
     if (mp != NULL)
     {
         janus_mutex_lock(&mp->mutex);
@@ -1990,12 +1993,12 @@ static void janus_streaming_hangup_media_internal(janus_plugin_session *handle)
     session->mountpoint = NULL;
     g_atomic_int_set(&session->hangingup, 0);
 
-    JANUS_LOG(LOG_VERB, "[%s-%p] 完成释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME, handle);
+    JANUS_LOG(LOG_VERB, "[%s-%p] 完成释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_RTPRX_NAME, handle);
 }
 
-void janus_plugin_hangup_media_tms_playfile(janus_plugin_session *handle)
+void janus_plugin_hangup_media_tms_rtprx(janus_plugin_session *handle)
 {
-    JANUS_LOG(LOG_INFO, "[Janus][%s-%p] WebRTC连接已挂断\n", TMS_JANUS_PLUGIN_PLAYFILE_NAME, handle);
+    JANUS_LOG(LOG_INFO, "[Janus][%s-%p] WebRTC连接已挂断\n", TMS_JANUS_PLUGIN_RTPRX_NAME, handle);
     janus_mutex_lock(&sessions_mutex);
     janus_streaming_hangup_media_internal(handle);
     janus_mutex_unlock(&sessions_mutex);

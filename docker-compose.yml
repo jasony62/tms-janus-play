@@ -32,3 +32,17 @@ services:
       - ./ue_demo/src:/usr/share/nginx/html:ro
     env_file:
       - ./sample.env
+
+  ue_player:
+    build:
+      context: ./ue_player
+      args:
+        vue_app_base_url: /player
+        vue_app_ffmpeg_api_base: http://ffmpeg:3000/ffmpeg
+        vue_app_janus_address: janus
+    image: tms-janus/ue-player:latest
+    container_name: tms-janus-ue_player
+    ports:
+      - '8081:80'
+    environment:
+      - NGINX_WEB_BASE_URL=/player

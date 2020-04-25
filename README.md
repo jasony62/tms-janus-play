@@ -85,9 +85,9 @@ stun_server=stun.stunprotocol.org:3478
 
 在浏览器中打开：https://yourdomain:8080
 
-# 插件（playfile）
+# 插件（rtprx）
 
-播放指定文件
+接收 RTP 流
 
 # ue_player
 
