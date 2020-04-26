@@ -4,13 +4,13 @@ services:
     build: ./coturn
     image: tms-janus/coturn-ubuntu
     container_name: tms-janus-coturn-ubuntu
-    network_mode: 'host'
+    # network_mode: 'host'
 
   janus:
     build: ./janus
     image: tms-janus/janus-centos
     container_name: tms-janus-centos
-    network_mode: 'host'
+    # network_mode: 'host'
     env_file:
       - ./sample.env
     depends_on:
@@ -20,30 +20,31 @@ services:
     build: ./ffmpeg
     image: tms-janus/ffmpeg
     container_name: tms-janus-ffmpeg
-
-  ue_demo:
-    build: ./ue_demo
-    image: tms-janus/ue_demo
-    container_name: tms-janus-ue_demo
-    ports:
-      - '8080:80'
-      - '443:443'
-    volumes:
-      - ./ue_demo/src:/usr/share/nginx/html:ro
-    env_file:
-      - ./sample.env
+    depends_on:
+      - janus
 
   ue_player:
     build:
       context: ./ue_player
       args:
-        vue_app_base_url: /player
-        vue_app_ffmpeg_api_base: http://ffmpeg:3000/ffmpeg
-        vue_app_ffmpeg_push: http://ffmpeg:3001
+        vue_app_base_url: player
         vue_app_janus_address: janus
     image: tms-janus/ue-player:latest
     container_name: tms-janus-ue_player
-    ports:
-      - '8081:80'
+    # ports:
+    # - '8080:80'
+    #   - '443:443'
     environment:
       - NGINX_WEB_BASE_URL=/player
+
+  ue_demo:
+    build: ./ue_demo
+    image: tms-janus/ue_demo
+    container_name: tms-janus-ue_demo
+    # ports:
+    #   - '8081:80'
+    #   - '443:443'
+    volumes:
+      - ./ue_demo/src:/usr/share/nginx/html:ro
+    env_file:
+      - ./sample.env

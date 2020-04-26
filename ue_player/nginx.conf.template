@@ -1,0 +1,49 @@
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    #include /etc/nginx/conf.d/*.conf;
+
+    server {
+        listen  80;
+        location $NGINX_WEB_BASE_URL {
+            root   /usr/share/nginx/html;
+            try_files $uri $uri/index.html $NGINX_WEB_BASE_URL/index.html;
+        }
+    }
+    
+#ssl_server    server {
+#ssl_server        listen 443 ssl;
+#ssl_server        ssl_certificate $ssl_certificate;
+#ssl_server        ssl_certificate_key $ssl_certificate_key;
+#ssl_server        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+#ssl_server        ssl_ciphers HIGH:!aNULL:!MD5;
+#ssl_server        location / {
+#ssl_server            root /usr/share/nginx/html;
+#ssl_server            index index.html index.htm;
+#ssl_server        }
+#ssl_server    }
+}

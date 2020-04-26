@@ -1,6 +1,6 @@
 module.exports = {
   publicPath: '/' + process.env.VUE_APP_BASE_URL,
-  outputDir: './dist' + process.env.VUE_APP_BASE_URL ? `/${process.env.VUE_APP_BASE_URL}` : '',
+  outputDir: 'dist' + (process.env.VUE_APP_BASE_URL ? `/${process.env.VUE_APP_BASE_URL}` : ''),
   filenameHashing: true,
   pages: {
     index: {
