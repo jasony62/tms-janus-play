@@ -18,6 +18,7 @@
     </div>
     <div>
       <span v-if="sourceType==='test'">
+        <label>播放时长（秒）：<input type="number" v-model="duration"></label>
         <button @click="playTestSource" :disabled="!canPlaySource">开始播放模拟视频</button>
       </span>
       <span v-if="sourceType==='file'">
@@ -40,6 +41,7 @@
 
 <script>
 import { ffmpeg } from '../apis'
+import io from 'socket.io-client'
 
 // eslint-disable-next-line
 const GlobalJanus = Janus
@@ -50,13 +52,14 @@ if (window.location.protocol === 'http:')
 else server = 'https://' + window.location.hostname + ':8089/janus'
 
 let janus
-const opaqueId = 'playfiletest-' + GlobalJanus.randomString(12)
-let playfileHandle
+const opaqueId = 'rtprx-' + GlobalJanus.randomString(12)
+let rtprxHandle // 和Janus插件进行交互
 
 export default {
   name: 'JanusPlayfile',
   data() {
     return {
+      duration: 10,
       playfile: '',
       status: '',
       initialized: false,
@@ -102,7 +105,7 @@ export default {
   },
   methods: {
     onAttachSuccess(pluginHandle) {
-      playfileHandle = pluginHandle
+      rtprxHandle = pluginHandle
       this.attached = true
     },
     onPluginMessage(msg, remoteJsep) {
@@ -112,14 +115,9 @@ export default {
       if (result !== null && result !== undefined) {
         if (result['status'] !== undefined && result['status'] !== null) {
           var status = result['status']
-          if (status === 'starting') this.status = 'Starting, please wait...'
-          else if (status === 'started') this.status = 'Started'
-          else if (status === 'stopped') this.status = 'Stopped'
-          else if (status === 'mounted') {
+          if (status === 'mounted') {
             this.sourcePorts = result.ports
           }
-        } else if (msg['playfileHandle'] === 'event') {
-          //
         }
       } else if (msg['error'] !== undefined && msg['error'] !== null) {
         console.error(msg['error'])
@@ -129,14 +127,14 @@ export default {
         GlobalJanus.debug('Handling SDP as well...')
         GlobalJanus.debug(remoteJsep)
         // Offer from the plugin, let's answer
-        playfileHandle.createAnswer({
+        rtprxHandle.createAnswer({
           jsep: remoteJsep,
           // We want recvonly audio/video and, if negotiated, datachannels
           media: { audioSend: false, videoSend: false, data: true },
           success: localJsep => {
             GlobalJanus.debug('Got SDP!')
             GlobalJanus.debug(localJsep)
-            playfileHandle.send({
+            rtprxHandle.send({
               message: { request: 'answer.webrtc' },
               jsep: localJsep
             })
@@ -187,49 +185,53 @@ export default {
       })
     },
     detach() {
-      if (playfileHandle)
-        playfileHandle.detach({
+      if (rtprxHandle)
+        rtprxHandle.detach({
           success: () => {
             this.attached = false
-            playfileHandle = null
+            rtprxHandle = null
           }
         })
     },
     createWebrtc() {
       // 获得服务端sdp
       const body = { request: 'create.webrtc' }
-      playfileHandle.send({ message: body })
+      rtprxHandle.send({ message: body })
     },
     hangupWebrtc() {
-      playfileHandle.hangup()
+      rtprxHandle.hangup()
     },
     prepareSource() {
       const body = { request: 'prepare.source' }
-      playfileHandle.send({ message: body })
+      rtprxHandle.send({ message: body })
     },
     destroySource() {
       const body = { request: 'destroy.source' }
-      playfileHandle.send({ message: body })
+      rtprxHandle.send({ message: body })
     },
     playTestSource() {
       if (this.canPlaySource) {
         const { audioport, videoport } = this.sourcePorts
-        ffmpeg.test.play(audioport, videoport).then(result => {
-          this.ffmpegId = result.cid
-        })
+        ffmpeg.test
+          .play(this.socket.id, audioport, videoport, this.duration)
+          .then(result => {
+            this.ffmpegId = result.cid
+          })
       }
     },
     playFileSource() {
       if (this.canPlaySource) {
         const { audioport, videoport } = this.sourcePorts
-        ffmpeg.file.play(this.playfile, audioport, videoport).then(result => {
-          this.ffmpegId = result.cid
-        })
+        ffmpeg.file
+          .play(this.socket.id, this.playfile, audioport, videoport)
+          .then(result => {
+            this.ffmpegId = result.cid
+          })
       }
     },
     stopSource() {
       const api = ffmpeg[this.sourceType]
-      if (api) api.stop(this.ffmpegId).then(() => (this.ffmpegId = null))
+      if (api) api.stop(this.ffmpegId)
     },
     pauseSource() {
       const api = ffmpeg[this.sourceType]
@@ -250,6 +252,18 @@ export default {
         this.initialized = true
       }
     })
+    // 接收推送事件
+    const socket = io(process.env.VUE_APP_FFMPEG_PUSH)
+    socket.on('tms-koa-push', data => {
+      this.status = data.status
+    })
+    socket.on('tms-koa-ffmpeg', data => {
+      this.status = data.status
+      if (data.status === 'ended' || data.status === 'killed') {
+        this.ffmpegId = null
+      }
+    })
+    this.socket = socket
   }
 }
 </script>

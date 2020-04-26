@@ -39,6 +39,7 @@ services:
       args:
         vue_app_base_url: /player
         vue_app_ffmpeg_api_base: http://ffmpeg:3000/ffmpeg
+        vue_app_ffmpeg_push: http://ffmpeg:3001
         vue_app_janus_address: janus
     image: tms-janus/ue-player:latest
     container_name: tms-janus-ue_player
