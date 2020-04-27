@@ -38,6 +38,7 @@ services:
     build:
       context: ./ue_player
       args:
+        vue_app_title: tms-janus 播放器
         vue_app_base_url: player
         vue_app_janus_address: janus
         # vue_app_ffmpeg_api_base: https://localhost:3443/ffmpeg

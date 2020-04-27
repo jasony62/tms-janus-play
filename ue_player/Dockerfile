@@ -11,12 +11,14 @@ COPY package.json package.json
 RUN cnpm i
 
 # 生成.env文件
+ARG vue_app_title
 ARG vue_app_base_url
 ARG vue_app_ffmpeg_api_base
 ARG vue_app_ffmpeg_push
 ARG vue_app_janus_address
 
-RUN echo VUE_APP_BASE_URL=$vue_app_base_url > .env && \
+RUN echo VUE_APP_TITLE=$vue_app_title > .env && \
+  echo VUE_APP_BASE_URL=$vue_app_base_url >> .env && \
   echo VUE_APP_FFMPEG_API_BASE=$vue_app_ffmpeg_api_base >> .env && \
   echo VUE_APP_FFMPEG_PUSH=$vue_app_ffmpeg_push >> .env && \
   echo VUE_APP_JANUS_ADDRESS=$vue_app_janus_address >> .env
