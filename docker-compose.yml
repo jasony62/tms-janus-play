@@ -11,6 +11,11 @@ services:
     image: tms-janus/janus-centos
     container_name: tms-janus-centos
     # network_mode: 'host'
+    # ports:
+    #   - '8088:8088'
+    #   - '10000-10099:10000-10099/udp'
+    # volumes:
+    #   - /usr/local/etc/ssl:/usr/local/etc/ssl
     env_file:
       - ./sample.env
     depends_on:
@@ -20,6 +25,12 @@ services:
     build: ./ffmpeg
     image: tms-janus/ffmpeg
     container_name: tms-janus-ffmpeg
+    # ports:
+    #   - '3000:3000'
+    #   - '3001:3001'
+    # volumes:
+    #   - ./ffmpeg/files:/home/node/app/files
+    #   - /usr/local/etc/ssl:/usr/local/etc/ssl
     depends_on:
       - janus
 
@@ -29,13 +40,19 @@ services:
       args:
         vue_app_base_url: player
         vue_app_janus_address: janus
+        # vue_app_ffmpeg_api_base: https://localhost:3443/ffmpeg
+        # vue_app_ffmpeg_push: https://localhost:3001
     image: tms-janus/ue-player:latest
     container_name: tms-janus-ue_player
     # ports:
-    # - '8080:80'
+    #   - '8080:80'
     #   - '443:443'
+    # volumes:
+    #   - /usr/local/etc/ssl:/usr/local/etc/ssl
     environment:
       - NGINX_WEB_BASE_URL=/player
+    env_file:
+      - ./sample.env
 
   ue_demo:
     build: ./ue_demo
@@ -46,5 +63,6 @@ services:
     #   - '443:443'
     volumes:
       - ./ue_demo/src:/usr/share/nginx/html:ro
+      #   - /usr/local/etc/ssl:/usr/local/etc/ssl
     env_file:
       - ./sample.env

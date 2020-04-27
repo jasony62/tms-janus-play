@@ -18,8 +18,10 @@ RUN npm install cnpm -g
 
 WORKDIR /home/node/app
 
-COPY . .
+COPY package.json package.json
 
 RUN cnpm i
+
+COPY . .
 
 CMD [ "node", "server" ]

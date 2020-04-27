@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-ENV server_name="" ssl_certificate="" ssl_certificate_key=""
+ENV ssl_certificate="" ssl_certificate_key=""
 
 ADD nginx.conf.template /etc/nginx/nginx.conf.template
 

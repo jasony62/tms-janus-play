@@ -38,6 +38,8 @@ RUN sed -i 's?http://dl-cdn.alpinelinux.org/?https://mirrors.aliyun.com/?' /etc/
   cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
   apk del tzdata
 
+ENV ssl_certificate="" ssl_certificate_key=""
+
 # 修改配置文件
 ADD ./nginx.conf.template /etc/nginx/nginx.conf.template
 
