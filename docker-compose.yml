@@ -40,7 +40,7 @@ services:
       args:
         vue_app_title: tms-janus 播放器
         vue_app_base_url: player
-        vue_app_janus_address: janus
+        # vue_app_janus_address: janus # 需要指定为janus服务的地址
         # vue_app_ffmpeg_api_base: https://localhost:3443/ffmpeg
         # vue_app_ffmpeg_push: https://localhost:3001
     image: tms-janus/ue-player:latest

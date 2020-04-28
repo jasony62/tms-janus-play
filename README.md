@@ -20,53 +20,74 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 使用了`tms-koa-ffmpeg`插件。
 
-```
-curl "http://localhost:3000/tms-koa-ffmpeg/rtp/play?path=123.mp4&address=192.168.1.3&vport=5014"
-```
-
-```
-v=0
-o=- 0 0 IN IP4 192.168.1.3
-s=No Name
-c=IN IP4 192.168.1.3
-t=0 0
-a=tool:libavformat 58.26.101
-m=video 5014 RTP/AVP 96
-b=AS:200
-a=rtpmap:96 MP4V-ES/90000
-a=fmtp:96 profile-level-id=1
-```
-
 ## ue_player
 
 在 nginx 中运行前端代码。
+
+## ue_demo
+
+janus-gateway 自带的演示程序。
 
 # 环境准备
 
 项目目录下新建`docker-compose.override.yml`文件。
 
 ```
-version: "3.7"
+version: '3.7'
 services:
+  coturn:
+  # network_mode: 'host'
+
   janus:
-    network_mode: "bridge"
+    # network_mode: 'host'
     ports:
-      - "8088:8088"
-    # volumes:
-    #   - /etc/letsencrypt:/etc/letsencrypt
+      - '8088:8088'
+      - '8089:8089'
+      - '5004:5004/udp'
+      - '10000-10099:10000-10099/udp'
+    volumes:
+      - /Users/yangyue/ssl:/usr/local/etc/ssl
     env_file:
       - ./local.env
 
-  ue_client:
-    # volumes:
-    #   - /etc/letsencrypt:/etc/letsencrypt
+  ffmpeg:
+    ports:
+      - '3000:3000'
+      - '3443:3443'
+      - '3444:3444'
+    volumes:
+      - ./ffmpeg/files:/home/node/app/files
+      - /Users/yangyue/ssl:/usr/local/etc/ssl
     env_file:
       - ./local.env
+
+  ue_player:
+    build:
+      args:
+        vue_app_janus_address: janus # 需要指定为janus服务的地址
+        vue_app_ffmpeg_api_base: https://localhost:3443/ffmpeg
+        vue_app_ffmpeg_push: https://localhost:3444
+    volumes:
+      - /Users/yangyue/ssl:/usr/local/etc/ssl
+    env_file:
+      - ./local.env
+    ports:
+      - '8080:80'
+      - '8443:443'
+
+  ue_demo:
+    volumes:
+      - /Users/yangyue/ssl:/usr/local/etc/ssl
+    env_file:
+      - ./local.env
+    ports:
+      - '8081:80'
+      - '8444:443'
 ```
 
-服务 janus 默认使用的网络模式为`host`，但是在 Mac 和 Windows 环境下不支持，所以需要修改网络模式，并指定需要映射的端口。
+在 linux 环境下，服务 janus 应使用的网络模式为`host`，否则会报错（和 mDNS 有关，目前不知如何怎样解决）。但是，在 Mac 和 Windows 环境下不支持`host`模式。
 
-如果服务器安装了 ssl 证书，janue 和 nginx 需要开启 https 端口，需要将存放证书的目录挂载到容器中。
+因为浏览器使用 WebRTC 默认要使用 https，所以最好安装 ssl 证书。服务器生成好 ssl 证书后，janue 和 nginx 需要开启 https 端口，需要将存放证书的目录挂载到容器中。
 
 如果需要开启 stun 和 ssl，需要给环境变量赋值。新建文件`local.env`（可以根据需要命名），指定使用这个文件。
 
@@ -76,19 +97,16 @@ ssl_certificate=
 ssl_certificate_key=
 
 # janus stun-server
-stun_server=stun.stunprotocol.org:3478
+stun_server=coturn:3478
+
+# debug级别
+debug_level=4
 ```
+
+`stun_server`设置为 docker 中的`coturn`（使用部署位置的公网地址），或者公共的服务地址，例如：stun.stunprotocol.org:3478
 
 # 运行
 
 > docker-compose up --build
 
-在浏览器中打开：https://yourdomain:8080
-
-# 插件（rtprx）
-
-接收 RTP 流
-
-# ue_player
-
-用 VUE 实现的流媒体播放客户端。
+在浏览器中打开：https://yourdomain:8080/player
