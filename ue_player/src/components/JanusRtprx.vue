@@ -40,16 +40,12 @@
 </template>
 
 <script>
+import { JANUS_SERVER as server, FFMPEG_PUSH_ADDRESS } from '../global'
 import { ffmpeg } from '../apis'
 import io from 'socket.io-client'
 
 // eslint-disable-next-line
 const GlobalJanus = Janus
-
-let server
-if (window.location.protocol === 'http:')
-  server = 'http://' + window.location.hostname + ':8088/janus'
-else server = 'https://' + window.location.hostname + ':8089/janus'
 
 let janus
 const opaqueId = 'rtprx-' + GlobalJanus.randomString(12)
@@ -253,7 +249,7 @@ export default {
       }
     })
     // 接收推送事件
-    const socket = io(process.env.VUE_APP_FFMPEG_PUSH)
+    const socket = io(FFMPEG_PUSH_ADDRESS)
     socket.on('tms-koa-push', data => {
       this.status = data.status
     })

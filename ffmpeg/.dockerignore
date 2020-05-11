@@ -10,3 +10,4 @@ LICENSE
 .vscode
 ecosystem.config.js
 files
+.env.local

@@ -4,7 +4,6 @@ export default {
   tmsAxios() {
     return TmsAxios.ins('ffmpeg-api')
   },
-  janusAddress: process.env.VUE_APP_JANUS_ADDRESS,
   stop(cid) {
     return this.tmsAxios()
       .get(`${this.base}/stop`, { params: { cid } })

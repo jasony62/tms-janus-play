@@ -1,10 +1,13 @@
+import { FFMPEG_RTP_TARGET, FFMPEG_API_ADDRESS } from '../../global'
 import baseApi from './base'
 
+const base = `${FFMPEG_API_ADDRESS}/rtp/file`
+
 const api = {
-  base: process.env.VUE_APP_FFMPEG_API_BASE + '/rtp/file',
+  base,
   play(socketid, path, aport, vport) {
     return this.tmsAxios()
-      .get(`${base}/play`, { params: { socketid, path, address: this.janusAddress, aport, vport } })
+      .get(`${base}/play`, { params: { socketid, path, address: FFMPEG_RTP_TARGET, aport, vport } })
       .then((rst) => rst.data.result)
   },
 }

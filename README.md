@@ -1,10 +1,18 @@
 # tms-janus-streaming
 
-基于 janus-gateway 实现的流媒体服务器。
+基于`janus-gateway`实现的流媒体服务器。
+
+播放端（ue_player）和`janus`服务通过 http 端口（8088）或 https 端口 （8089）服务建立 WebRTC 链接。
+
+播放端（ue_player）和`ffmpeg`服务通过端口控制`ffmpeg`播放媒体，通过端口接收推送事件。
+
+播放端（ue_player）将`janus`服务中用于接收`ffmpeg`服务发送的 RTP 包的地址和端口传递给`ffmpeg`服务。
+
+## ssl
 
 ## coturn
 
-为了解决点对点通信，需要支持穿越 Nat，配置自己的 turn 服务器（coturn）。
+为了在互联网上实现点对点通信，需要支持穿越 Nat，配置自己的 turn 服务器（coturn）。
 
 参考：https://github.com/coturn/coturn
 
@@ -20,11 +28,34 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 使用了`tms-koa-ffmpeg`插件。
 
-## ue_player
+提供的端口
 
-在 nginx 中运行前端代码。
+## 播放端（ue_player）
 
-## ue_demo
+在 nginx 中运行控制媒体播放的前端代码。
+
+默认`janus`服务和播放端在同一服务器上，使用 8088 作为`janus`服务的 http 端口，使用 8089 作为 https 端口。
+
+可以通过环境变量 VUE_APP_JANUS_HTTP_SERVER 直接指定 janus。
+
+环境变量
+
+| 变量                      | 说明                                                        | 默认值 |
+| ------------------------- | ----------------------------------------------------------- | ------ |
+| VUE_APP_JANUS_ADDRESS     | `janus`服务的地址。如果不指定，认为和播放端部署在同一主机。 | 无     |
+| VUE_APP_JANUS_HTTP_PORT   | `janus`服务 http 服务端口。与浏览器地址栏的协议一致。       | 8088   |
+| VUE_APP_JANUS_HTTPS_PORT  | `janus`服务 https 服务端口。与浏览器地址栏的协议一致。      | 8089   |
+|                           |                                                             |        |
+| VUE_APP_FFMPEG_PROTOCOL   | `ffmpeg`服务协议（http/https）。                            | http   |
+| VUE_APP_FFMPEG_HOSTNAME   | `ffmpeg`服务接口地址。                                      | 无     |
+| VUE_APP_FFMPEG_API_PORT   | `ffmpeg`服务调用 api 端口。                                 | 3000   |
+| VUE_APP_FFMPEG_API_PATH   | `ffmpeg`服务调用 api 入口路径。                             | ffmpeg |
+| VUE_APP_FFMPEG_PUSH_PORT  | `ffmpeg`推送服务端口，接收`ffmpeg`推送事件。                | 3001   |
+| VUE_APP_FFMPEG_RTP_TARGET | 接收`ffmpeg`发送的 RTP 流的地址                             | janus  |
+
+默认情况下所有的模块都在 docker 中运行，`janus`服务用于接收`ffmpeg`服务发送的 RTP 包。
+
+## ue-demo
 
 janus-gateway 自带的演示程序。
 
@@ -65,8 +96,8 @@ services:
     build:
       args:
         vue_app_janus_address: janus # 需要指定为janus服务的地址
-        vue_app_ffmpeg_api_base: https://localhost:3443/ffmpeg
-        vue_app_ffmpeg_push: https://localhost:3444
+        vue_app_ffmpeg_http_server: https://localhost:3443/ffmpeg
+        vue_app_ffmpeg_push_server: https://localhost:3444
     volumes:
       - /Users/yangyue/ssl:/usr/local/etc/ssl
     env_file:
