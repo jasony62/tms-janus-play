@@ -26,9 +26,12 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 用`ffmpeg`控制媒体文件播放。
 
-使用了`tms-koa-ffmpeg`插件。
+在`tms-koa`框架中安装`tms-koa-ffmpeg`插件实现媒体播放。
 
-提供的端口
+| 变量                | 说明             | 默认值                        |
+| ------------------- | ---------------- | ----------------------------- |
+| ssl_certificate     | ssl 证书存放位置 | /usr/local/etc/ssl/server.crt |
+| ssl_certificate_key | ssl 证书存放位置 | /usr/local/etc/ssl/server.key |
 
 ## 播放端（ue_player）
 

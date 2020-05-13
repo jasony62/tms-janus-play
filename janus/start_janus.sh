@@ -4,7 +4,7 @@ echo "启动 Janus server"
 
 echo "修改Jansu配置文件"
 sed -i "s/#disable = \"libjanus_rabbitmq.so\"/disable = \"libjanus_rabbitmq.so,libjanus_pfunix.so\"/g" /opt/janus/etc/janus/janus.jcfg
-sed -i "s/#disable = \"libjanus_voicemail.so,libjanus_recordplay.so\"/disable = \"libjanus_voicemail.so,libjanus_recordplay.so,libjanus_audiobridge.so,libjanus_videoroom.so,libjanus_videocall.so,libjanus_echotest.so,libjanus_nosip.so\"/g" /opt/janus/etc/janus/janus.jcfg
+# sed -i "s/#disable = \"libjanus_voicemail.so,libjanus_recordplay.so\"/disable = \"libjanus_voicemail.so,libjanus_recordplay.so,libjanus_audiobridge.so,libjanus_videoroom.so,libjanus_videocall.so,libjanus_echotest.so,libjanus_nosip.so\"/g" /opt/janus/etc/janus/janus.jcfg
 
 ldconfig -p | grep microhttpd
 

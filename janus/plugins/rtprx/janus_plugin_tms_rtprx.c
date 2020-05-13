@@ -180,15 +180,11 @@ typedef struct tms_rtprx_mountpoint
     GDestroyNotify source_destroy;
     tms_rtprx_codecs codecs;
     gboolean audio, video, data;
-    GList *viewers; /* 关联的session列表 */
-    //int helper_threads; /* Only relevant for RTP tms_rtprx_mps */
-    //GList *threads;     /* Only relevant for RTP tms_rtprx_mps */
+    void *viewer; /* 关联的session */
     volatile gint destroyed;
     janus_mutex mutex;
     janus_refcount ref;
 } tms_rtprx_mountpoint;
-static GHashTable *tms_rtprx_mps;
-static janus_mutex tms_rtprx_mps_mutex;
 
 static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     gboolean doaudio, uint8_t acodec, char *artpmap,
@@ -197,7 +193,7 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
 /**
  * 插件状态 
  */
-static volatile gint initialized = 0, stopping = 0;
+static volatile gint initialized = 0;
 /**
  * 插件会话 
  */
@@ -259,7 +255,9 @@ static void tms_rtprx_session_free(const janus_refcount *session_ref)
     g_free(session);
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放会话\n");
 }
-/* 在插件会话表中查找会话 */
+/**
+ * 在插件会话表中查找会话 
+ */
 static tms_rtprx_session *tms_rtprx_lookup_session(janus_plugin_session *handle)
 {
     tms_rtprx_session *session = NULL;
@@ -269,7 +267,9 @@ static tms_rtprx_session *tms_rtprx_lookup_session(janus_plugin_session *handle)
     }
     return session;
 }
-/* 释放异步消息 */
+/**
+ * 释放异步消息 
+ */
 static void tms_rtprx_message_free(tms_rtprx_message *msg)
 {
     JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放异步消息\n");
@@ -296,11 +296,15 @@ static void tms_rtprx_message_free(tms_rtprx_message *msg)
 
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放异步消息\n");
 }
-static void tms_rtprx_mountpoint_destroy(tms_rtprx_mountpoint *mountpoint)
+/**
+ * 销毁播放源
+ */
+static void tms_rtprx_mountpoint_destroy(tms_rtprx_mountpoint *mp)
 {
-    if (!mountpoint)
+    JANUS_LOG(LOG_VERB, "[Rtprx] 开始销毁挂载点 %p\n", mp);
+    if (!mp)
         return;
-    if (!g_atomic_int_compare_and_exchange(&mountpoint->destroyed, 0, 1))
+    if (!g_atomic_int_compare_and_exchange(&mp->destroyed, 0, 1))
         return;
 
     /* If this is an RTP source, interrupt the poll */
@@ -316,11 +320,12 @@ static void tms_rtprx_mountpoint_destroy(tms_rtprx_mountpoint *mountpoint)
     // }
     // if (mountpoint->thread != NULL)
     //     g_thread_join(mountpoint->thread);
-    /* Decrease the counter */
-    janus_refcount_decrease(&mountpoint->ref);
 
-    JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁挂载点\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁挂载点 %p\n", mp);
 }
+/**
+ * 释放播放源资源
+ */
 static void tms_rtprx_mountpoint_free(const janus_refcount *mp_ref)
 {
     tms_rtprx_mountpoint *mp = janus_refcount_containerof(mp_ref, tms_rtprx_mountpoint, ref);
@@ -332,10 +337,6 @@ static void tms_rtprx_mountpoint_free(const janus_refcount *mp_ref)
     //g_free(mp->description);
     //g_free(mp->secret);
     //g_free(mp->pin);
-    janus_mutex_lock(&mp->mutex);
-    if (mp->viewers != NULL)
-        g_list_free(mp->viewers);
-    janus_mutex_unlock(&mp->mutex);
 
     if (mp->source != NULL && mp->source_destroy != NULL)
     {
@@ -351,7 +352,9 @@ static void tms_rtprx_mountpoint_free(const janus_refcount *mp_ref)
 
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放挂载点\n");
 }
-/* 异步消息处理 */
+/**
+ * 异步消息处理 
+ */
 static void *tms_rtprx_async_message_thread(void *data)
 {
     JANUS_LOG(LOG_VERB, "[Rtprx] 启动异步消息处理线程\n");
@@ -456,15 +459,14 @@ static void *tms_rtprx_async_message_thread(void *data)
                 "VP8/90000");
             if (mp)
             {
+                /* 建立会话和播放源的双向引用 */
                 janus_refcount_increase(&mp->ref); // 会话引用，引用+1
                 session->mountpoint = mp;
-                /* Add the user to the list of watchers and we're done */
                 janus_mutex_lock(&mp->mutex);
-                janus_refcount_increase(&session->ref);
-                mp->viewers = g_list_append(mp->viewers, session);
+                mp->viewer = session;
                 janus_mutex_unlock(&mp->mutex);
+                janus_refcount_increase(&session->ref);
 
-                JANUS_LOG(LOG_VERB, "[Rtprx] 完成创建RTP媒体数据源命令[ %p ]\n", mp);
                 /* 返回挂载点信息 */
                 tms_rtprx_rtp_source *source = mp->source;
                 json_t *ports = json_object();
@@ -475,6 +477,8 @@ static void *tms_rtprx_async_message_thread(void *data)
                 result = json_object();
                 json_object_set_new(result, "ports", ports);
                 json_object_set_new(result, "status", json_string("mounted"));
+
+                JANUS_LOG(LOG_VERB, "[Rtprx] 完成创建RTP媒体数据源命令[ %p ]\n", mp);
             }
             else
             {
@@ -727,7 +731,6 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     gboolean dovideo, uint8_t vcodec, char *vrtpmap)
 {
     JANUS_LOG(LOG_VERB, "[Rtprx] 开始创建挂载点\n");
-    janus_mutex_lock(&tms_rtprx_mps_mutex);
 
     uint16_t aport = 0, artcpport = 0;
     int audio_fd = -1;
@@ -854,17 +857,16 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     mp->codecs.video_pt = dovideo ? vcodec : -1;
     mp->codecs.video_rtpmap = dovideo ? g_strdup(vrtpmap) : NULL;
     mp->codecs.video_fmtp = NULL;
-    mp->viewers = NULL;
+    mp->viewer = NULL;
 
+    janus_refcount_init(&mp->ref, tms_rtprx_mountpoint_free);
     g_atomic_int_set(&mp->destroyed, 0);
     janus_mutex_init(&mp->mutex);
-    janus_refcount_init(&mp->ref, tms_rtprx_mountpoint_free); // 哈希表内使用，引用加1
-    g_hash_table_insert(tms_rtprx_mps, janus_uint64_dup(mp->id), mp);
-    janus_mutex_unlock(&tms_rtprx_mps_mutex);
 
     // 启动接收RTP Packet线程
     GError *error = NULL;
     janus_refcount_increase(&mp->ref); // 线程内使用，引用加1
+    JANUS_LOG(LOG_VERB, "[Rtprx] 准备启动挂载点线程 [ %p ]\n", mp);
     g_thread_try_new("rtp thread-1", &tms_rtprx_rtp_relay_thread, mp, &error);
     if (error != NULL)
     {
@@ -1319,7 +1321,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
     /* Loop */
     int num = 0;
     tms_rtprx_rtp_relay_packet packet;
-    while (!g_atomic_int_get(&stopping) && !g_atomic_int_get(&mountpoint->destroyed))
+    while (!g_atomic_int_get(&mountpoint->destroyed))
     {
         /* Prepare poll */
         num = 0;
@@ -1461,7 +1463,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     /* Go! */
                     JANUS_LOG(LOG_VERB, "[Rtprx] 数据源RTP包接收线程，转发audio\n");
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtp_packet, &packet);
+                    tms_rtprx_relay_rtp_packet(mountpoint->viewer, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                     continue;
                 }
@@ -1641,7 +1643,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     /* Go! */
                     JANUS_LOG(LOG_VERB, "[Rtprx] 数据源RTP包接收线程，转发video\n");
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtp_packet, &packet);
+                    tms_rtprx_relay_rtp_packet(mountpoint->viewer, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                     continue;
                 }
@@ -1664,7 +1666,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     packet.length = bytes;
                     /* Go! */
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtcp_packet, &packet);
+                    tms_rtprx_relay_rtcp_packet(mountpoint->viewer, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                 }
                 else if (video_rtcp_fd != -1 && fds[i].fd == video_rtcp_fd)
@@ -1686,7 +1688,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     packet.length = bytes;
                     /* Go! */
                     janus_mutex_lock(&mountpoint->mutex);
-                    g_list_foreach(mountpoint->viewers, tms_rtprx_relay_rtcp_packet, &packet);
+                    tms_rtprx_relay_rtcp_packet(mountpoint->viewer, &packet);
                     janus_mutex_unlock(&mountpoint->mutex);
                 }
             }
@@ -1694,43 +1696,39 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
     }
     JANUS_LOG(LOG_VERB, "[Rtprx] 开始结束RTP转发线程\n");
     /* Notify users this mountpoint is done */
-    janus_mutex_lock(&mountpoint->mutex);
-    GList *viewer = g_list_first(mountpoint->viewers);
-    /* Prepare JSON event */
-    json_t *event = json_object();
-    json_object_set_new(event, "rtprx", json_string("event"));
-    json_t *result = json_object();
-    json_object_set_new(result, "status", json_string("stopped"));
-    json_object_set_new(event, "result", result);
-    while (viewer)
+
+    tms_rtprx_session *session = (tms_rtprx_session *)mountpoint->viewer;
+    if (session != NULL)
     {
-        JANUS_LOG(LOG_VERB, "[Rtprx] 开始关闭RTP转发线程关联的会话\n");
-        tms_rtprx_session *session = (tms_rtprx_session *)viewer->data;
-        if (session != NULL)
-        {
-            session->stopping = TRUE;
-            session->started = FALSE;
-            session->paused = FALSE;
-            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
-            session->mountpoint = NULL;
-            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ][mountpoint: %p ] 调用关闭WebRTC连接\n", session, session->mountpoint);
-            /* Tell the core to tear down the PeerConnection, hangup_media will do the rest */
-            gateway->push_event(session->handle, &janus_plugin_tms_rtprx, NULL, event, NULL);
-            JANUS_LOG(LOG_VERB, "[Rtprx][session: %p ] 调用关闭WebRTC连接\n", session);
-            gateway->close_pc(session->handle);
-            janus_refcount_decrease(&session->ref);
-            janus_refcount_decrease(&mountpoint->ref);
-        }
-        mountpoint->viewers = g_list_remove_all(mountpoint->viewers, session);
-        viewer = g_list_first(mountpoint->viewers);
+        /* Prepare JSON event */
+        JANUS_LOG(LOG_VERB, "[Rtprx] 推送卸载挂载点事件\n");
+        json_t *event = json_object();
+        json_object_set_new(event, "rtprx", json_string("event"));
+        json_t *result = json_object();
+        json_object_set_new(result, "status", json_string("unmounted"));
+        json_object_set_new(event, "result", result);
+        gateway->push_event(session->handle, &janus_plugin_tms_rtprx, NULL, event, NULL);
+        json_decref(event);
+
+        JANUS_LOG(LOG_VERB, "[Rtprx] 开始解除会话和挂载点间的相互引用\n");
+        session->stopping = TRUE;
+        session->started = FALSE;
+        session->paused = FALSE;
+        session->mountpoint = NULL;
+        janus_refcount_decrease(&session->ref);
+
+        janus_mutex_lock(&mountpoint->mutex);
+        // 解除对会话的引用
+        mountpoint->viewer = NULL;
+        janus_mutex_unlock(&mountpoint->mutex);
+        janus_refcount_decrease(&mountpoint->ref);
+        JANUS_LOG(LOG_VERB, "[Rtprx] 完成解除会话和挂载点间的相互引用\n");
     }
-    json_decref(event);
-    janus_mutex_unlock(&mountpoint->mutex);
 
     g_free(name);
     janus_refcount_decrease(&mountpoint->ref);
 
-    JANUS_LOG(LOG_VERB, "[Rtprx] 完成关闭RTP转发线程\n");
+    JANUS_LOG(LOG_VERB, "[Rtprx] 完成结束RTP转发线程\n");
 
     return NULL;
 }
@@ -1750,8 +1748,6 @@ int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_pa
     {
         return -1;
     }
-
-    tms_rtprx_mps = g_hash_table_new_full(g_int64_hash, g_int64_equal, (GDestroyNotify)g_free, (GDestroyNotify)tms_rtprx_mountpoint_destroy);
 
     g_atomic_int_set(&initialized, 1);
 
@@ -1833,7 +1829,7 @@ const char *janus_plugin_get_package_tms_rtprx(void)
 /* 建立新会话 */
 void janus_plugin_create_session_tms_rtprx(janus_plugin_session *handle, int *error)
 {
-    if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
+    if (!g_atomic_int_get(&initialized))
     {
         *error = -1;
         return;
@@ -1860,7 +1856,7 @@ void janus_plugin_create_session_tms_rtprx(janus_plugin_session *handle, int *er
 void janus_plugin_destroy_session_tms_rtprx(janus_plugin_session *handle, int *error)
 {
     JANUS_LOG(LOG_VERB, "[Janus][Rtprx] 开始销毁会话\n");
-    if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
+    if (!g_atomic_int_get(&initialized))
     {
         *error = -1;
         return;
@@ -1914,7 +1910,7 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_rtprx(janus_plugin_s
 void janus_plugin_setup_media_tms_rtprx(janus_plugin_session *handle)
 {
     JANUS_LOG(LOG_INFO, "[%s-%p] WebRTC连接已可用\n", TMS_JANUS_PLUGIN_RTPRX_PACKAGE, handle);
-    if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
+    if (!g_atomic_int_get(&initialized))
         return;
     janus_mutex_lock(&sessions_mutex);
     tms_rtprx_session *session = tms_rtprx_lookup_session(handle);
@@ -1950,7 +1946,7 @@ void janus_plugin_setup_media_tms_rtprx(janus_plugin_session *handle)
 static void janus_streaming_hangup_media_internal(janus_plugin_session *handle)
 {
     JANUS_LOG(LOG_VERB, "[%s-%p] 开始释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_RTPRX_NAME, handle);
-    if (g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
+    if (!g_atomic_int_get(&initialized))
         return;
     tms_rtprx_session *session = tms_rtprx_lookup_session(handle);
     if (!session)
@@ -1976,21 +1972,11 @@ static void janus_streaming_hangup_media_internal(janus_plugin_session *handle)
     session->started = FALSE;
     session->paused = FALSE;
     tms_rtprx_mountpoint *mp = session->mountpoint;
-    JANUS_LOG(LOG_VERB, "[Rtprx] 释放WebTRC挂断后的会话关联的挂载点[%p][%p]\n", session, mp);
     if (mp != NULL)
     {
-        janus_mutex_lock(&mp->mutex);
-        JANUS_LOG(LOG_VERB, "  -- Removing the session from the mountpoint viewers\n");
-        if (g_list_find(mp->viewers, session) != NULL)
-        {
-            JANUS_LOG(LOG_VERB, "  -- -- Found!\n");
-            janus_refcount_decrease(&mp->ref);
-            janus_refcount_decrease(&session->ref);
-        }
-        mp->viewers = g_list_remove_all(mp->viewers, session);
-        janus_mutex_unlock(&mp->mutex);
+        JANUS_LOG(LOG_VERB, "[Rtprx] WebTRC挂断后，释放会话关联的挂载点[%p][%p]\n", session, mp);
+        tms_rtprx_mountpoint_destroy(mp);
     }
-    session->mountpoint = NULL;
     g_atomic_int_set(&session->hangingup, 0);
 
     JANUS_LOG(LOG_VERB, "[%s-%p] 完成释放WebTRC挂断后的资源\n", TMS_JANUS_PLUGIN_RTPRX_NAME, handle);

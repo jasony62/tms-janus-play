@@ -81,22 +81,24 @@ export default {
       return this.connected && this.attached
     },
     canCreateWebrtc() {
-      return this.attached && !this.isWebrtcUp
+      return this.connected && this.attached && !this.isWebrtcUp
     },
     canHangupWebrtc() {
-      return this.attached && this.isWebrtcUp
+      return this.connected && this.attached && this.isWebrtcUp
     },
     canPrepareSource() {
-      return this.isWebrtcUp && !this.sourcePorts.videoport
+      return this.connected && this.isWebrtcUp && !this.sourcePorts.videoport
     },
     canDestroySource() {
-      return this.isWebrtcUp && this.sourcePorts.videoport
+      return this.connected && this.isWebrtcUp && this.sourcePorts.videoport
     },
     canPlaySource() {
-      return parseInt(this.sourcePorts.videoport) && !this.ffmpegId
+      return (
+        this.connected && parseInt(this.sourcePorts.videoport) && !this.ffmpegId
+      )
     },
     canStopSource() {
-      return this.ffmpegId
+      return this.connected && this.ffmpegId
     }
   },
   methods: {
@@ -107,12 +109,17 @@ export default {
     onPluginMessage(msg, remoteJsep) {
       GlobalJanus.debug(' ::: Got a message :::')
       GlobalJanus.debug(msg)
-      var result = msg['result']
+      const result = msg['result']
       if (result !== null && result !== undefined) {
         if (result['status'] !== undefined && result['status'] !== null) {
-          var status = result['status']
-          if (status === 'mounted') {
-            this.sourcePorts = result.ports
+          const status = result['status']
+          switch (status) {
+            case 'mounted':
+              this.sourcePorts = result.ports
+              break
+            case 'unmounted':
+              this.sourcePorts = {}
+              break
           }
         }
       } else if (msg['error'] !== undefined && msg['error'] !== null) {
@@ -162,8 +169,8 @@ export default {
     },
     destroySession() {
       janus.destroy({
-        success: () => (this.connected = false),
-        error: () => (this.connected = false)
+        success: this.reset,
+        error: this.reset
       })
     },
     attach() {
@@ -239,6 +246,12 @@ export default {
     },
     playing() {
       console.log('playing...')
+    },
+    reset() {
+      this.sourcePorts = {}
+      this.isWebrtcUp = false
+      this.attached = false
+      this.connected = false
     }
   },
   mounted() {
@@ -249,7 +262,7 @@ export default {
       }
     })
     // 接收推送事件
-    const socket = io(FFMPEG_PUSH_ADDRESS)
+    const socket = io(FFMPEG_PUSH_ADDRESS, { reconnectionAttempts: 10 })
     socket.on('tms-koa-push', data => {
       this.status = data.status
     })
