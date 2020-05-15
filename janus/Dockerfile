@@ -66,7 +66,10 @@ RUN cd /root/janus/plugins/rtprx && \
     ./configure --prefix=/opt/janus && \ 
     make && make install 
 
-EXPOSE 8088 8089 5002 5004
+RUN cd /root/janus/plugins/rtprx && \
+    cp janus.plugin.tms.rtprx.jcfg /opt/janus/etc/janus/
+
+EXPOSE 8088 8089
 
 ENV ssl_certificate="" ssl_certificate_key="" stun_server="" debug_level=4
 

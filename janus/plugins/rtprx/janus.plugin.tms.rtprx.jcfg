@@ -1,3 +1,4 @@
 general: {
-    description = "This is a plugin for receiving rtp media streams."
+    rtp_port_range = "20000-40000"  # Range of ports to use for RTP/RTCP when '0' is
+                                    # passed as port for a mountpoint (default=10000-60000)
 }

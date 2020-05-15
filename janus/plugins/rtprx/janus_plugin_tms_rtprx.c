@@ -168,14 +168,8 @@ typedef struct tms_rtprx_codecs
 typedef struct tms_rtprx_mountpoint
 {
     guint64 id;
-    char *name;
-    char *description;
-    gboolean is_private;
-    char *secret;
-    char *pin;
     gboolean enabled;
     gboolean active;
-    //GThread *thread; /* A mountpoint may or may not have a thread */
     void *source; /* Can differ according to the source type */
     GDestroyNotify source_destroy;
     tms_rtprx_codecs codecs;
@@ -190,6 +184,8 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     gboolean doaudio, uint8_t acodec, char *artpmap,
     gboolean dovideo, uint8_t vcodec, char *vrtpmap);
 
+/* Static configuration instance */
+static janus_config *config = NULL;
 /**
  * 插件状态 
  */
@@ -276,11 +272,11 @@ static void tms_rtprx_message_free(tms_rtprx_message *msg)
     if (!msg || msg == &exit_message)
         return;
 
-    // if (msg->handle && msg->handle->plugin_handle)
-    // {
-    //     tms_rtprx_session *session = (tms_rtprx_session *)msg->handle->plugin_handle;
-    //     janus_refcount_decrease(&session->ref);
-    // }
+    if (msg->handle && msg->handle->plugin_handle)
+    {
+        tms_rtprx_session *session = (tms_rtprx_session *)msg->handle->plugin_handle;
+        janus_refcount_decrease(&session->ref);
+    }
     msg->handle = NULL;
 
     g_free(msg->transaction);
@@ -318,8 +314,6 @@ static void tms_rtprx_mountpoint_destroy(tms_rtprx_mountpoint *mp)
     //         res = write(source->pipefd[1], &code, sizeof(int));
     //     } while (res == -1 && errno == EINTR);
     // }
-    // if (mountpoint->thread != NULL)
-    //     g_thread_join(mountpoint->thread);
 
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成销毁挂载点 %p\n", mp);
 }
@@ -330,13 +324,6 @@ static void tms_rtprx_mountpoint_free(const janus_refcount *mp_ref)
 {
     tms_rtprx_mountpoint *mp = janus_refcount_containerof(mp_ref, tms_rtprx_mountpoint, ref);
     JANUS_LOG(LOG_VERB, "[Rtprx] 开始释放挂载点 %p\n", mp);
-
-    /* This mountpoint can be destroyed, free all the resources */
-
-    //g_free(mp->name);
-    //g_free(mp->description);
-    //g_free(mp->secret);
-    //g_free(mp->pin);
 
     if (mp->source != NULL && mp->source_destroy != NULL)
     {
@@ -496,7 +483,6 @@ static void *tms_rtprx_async_message_thread(void *data)
         }
 
         g_atomic_int_set(&session->renegotiating, 0);
-        janus_refcount_decrease(&session->ref);
 
         /* Prepare JSON event */
         json_t *jsep = json_pack("{ssss}", "type", sdp_type, "sdp", sdp);
@@ -814,7 +800,6 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
     }
     tms_rtprx_mountpoint *mp = g_malloc0(sizeof(tms_rtprx_mountpoint));
     mp->id = 1;
-    mp->name = "rtprx-mp";
     mp->active = FALSE;
     mp->enabled = TRUE;
     mp->audio = doaudio;
@@ -1282,8 +1267,9 @@ static void tms_rtprx_relay_rtcp_packet(gpointer data, gpointer user_data)
 
     return;
 }
-
-/* 接收外部媒体文件RTP帧的线程 */
+/** 
+ * 接收外部媒体文件RTP帧的线程 
+ */
 static void *tms_rtprx_rtp_relay_thread(void *data)
 {
     JANUS_LOG(LOG_INFO, "[Rtprx] 启动数据源RTP包接收转发线程\n");
@@ -1297,7 +1283,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
     tms_rtprx_rtp_source *source = mountpoint->source;
     if (source == NULL)
     {
-        JANUS_LOG(LOG_ERR, "[%s] Invalid RTP source mountpoint!\n", mountpoint->name);
+        JANUS_LOG(LOG_ERR, "[%p] Invalid RTP source mountpoint!\n", mountpoint);
         janus_refcount_decrease(&mountpoint->ref);
         return NULL;
     }
@@ -1307,8 +1293,6 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
     //int pipe_fd = source->pipefd[0];
     int audio_rtcp_fd = source->audio_rtcp_fd;
     int video_rtcp_fd = source->video_rtcp_fd;
-    //char *name = g_strdup(mountpoint->name ? mountpoint->name : "??");
-    char *name = g_strdup("??");
     /* Needed to fix seq and ts */
     uint32_t ssrc = 0, a_last_ssrc = 0, v_last_ssrc[3] = {0, 0, 0};
     /* File descriptors */
@@ -1381,10 +1365,10 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
         {
             if (errno == EINTR)
             {
-                JANUS_LOG(LOG_HUGE, "[%s] Got an EINTR (%s), ignoring...\n", name, strerror(errno));
+                JANUS_LOG(LOG_HUGE, "[%p] Got an EINTR (%s), ignoring...\n", mountpoint, strerror(errno));
                 continue;
             }
-            JANUS_LOG(LOG_ERR, "[%s] Error polling... %d (%s)\n", name, errno, strerror(errno));
+            JANUS_LOG(LOG_ERR, "[%p] Error polling... %d (%s)\n", mountpoint, errno, strerror(errno));
             mountpoint->enabled = FALSE;
             break;
         }
@@ -1399,7 +1383,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
             if (fds[i].revents & (POLLERR | POLLHUP))
             {
                 /* Socket error? */
-                JANUS_LOG(LOG_ERR, "[%s] Error polling: %s... %d (%s)\n", name,
+                JANUS_LOG(LOG_ERR, "[%p] Error polling: %s... %d (%s)\n", mountpoint,
                           fds[i].revents & POLLERR ? "POLLERR" : "POLLHUP", errno, strerror(errno));
                 mountpoint->enabled = FALSE;
                 break;
@@ -1412,7 +1396,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                 //     /* We're done here */
                 //     int code = 0;
                 //     bytes = read(pipe_fd, &code, sizeof(int));
-                //     JANUS_LOG(LOG_VERB, "[%s] Interrupting mountpoint\n", mountpoint->name);
+                //     JANUS_LOG(LOG_VERB, "[%p] Interrupting mountpoint\n", mountpoint);
                 //     break;
                 // }
                 // else
@@ -1449,7 +1433,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     if (ssrc != a_last_ssrc)
                     {
                         source->audio_ssrc = a_last_ssrc = ssrc;
-                        JANUS_LOG(LOG_INFO, "[%s] New audio stream! (ssrc=%" SCNu32 ")\n", name, a_last_ssrc);
+                        JANUS_LOG(LOG_INFO, "[%p] New audio stream! (ssrc=%" SCNu32 ")\n", mountpoint, a_last_ssrc);
                     }
                     packet.data->type = mountpoint->codecs.audio_pt;
                     /* Is there a recorder? */
@@ -1500,8 +1484,8 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                         if (source->keyframe.temp_ts > 0 && ntohl(rtp->timestamp) != source->keyframe.temp_ts)
                         {
                             /* We received the last part of the keyframe, get rid of the old one and use this from now on */
-                            JANUS_LOG(LOG_HUGE, "[%s] ... ... last part of keyframe received! ts=%" SCNu32 ", %d packets\n",
-                                      name, source->keyframe.temp_ts, g_list_length(source->keyframe.temp_keyframe));
+                            JANUS_LOG(LOG_HUGE, "[%p] ... ... last part of keyframe received! ts=%" SCNu32 ", %d packets\n",
+                                      mountpoint, source->keyframe.temp_ts, g_list_length(source->keyframe.temp_keyframe));
                             source->keyframe.temp_ts = 0;
                             janus_mutex_lock(&source->keyframe.mutex);
                             if (source->keyframe.latest_keyframe != NULL)
@@ -1514,7 +1498,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                         {
                             /* Part of the keyframe we're currently saving, store */
                             janus_mutex_lock(&source->keyframe.mutex);
-                            JANUS_LOG(LOG_HUGE, "[%s] ... other part of keyframe received! ts=%" SCNu32 "\n", name, source->keyframe.temp_ts);
+                            JANUS_LOG(LOG_HUGE, "[%p] ... other part of keyframe received! ts=%" SCNu32 "\n", mountpoint, source->keyframe.temp_ts);
                             tms_rtprx_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_rtprx_rtp_relay_packet));
                             pkt->data = g_malloc(bytes);
                             memcpy(pkt->data, buffer, bytes);
@@ -1560,7 +1544,7 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                                 {
                                     /* New keyframe, start saving it */
                                     source->keyframe.temp_ts = ntohl(rtp->timestamp);
-                                    JANUS_LOG(LOG_HUGE, "[%s] New keyframe received! ts=%" SCNu32 "\n", name, source->keyframe.temp_ts);
+                                    JANUS_LOG(LOG_HUGE, "[%p] New keyframe received! ts=%" SCNu32 "\n", mountpoint, source->keyframe.temp_ts);
                                     janus_mutex_lock(&source->keyframe.mutex);
                                     tms_rtprx_rtp_relay_packet *pkt = g_malloc0(sizeof(tms_rtprx_rtp_relay_packet));
                                     pkt->data = g_malloc(bytes);
@@ -1625,8 +1609,8 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                         v_last_ssrc[index] = ssrc;
                         if (index == 0)
                             source->video_ssrc = ssrc;
-                        JANUS_LOG(LOG_INFO, "[%s] New video stream! (ssrc=%" SCNu32 ", index %d)\n",
-                                  name, v_last_ssrc[index], index);
+                        JANUS_LOG(LOG_INFO, "[%p] New video stream! (ssrc=%" SCNu32 ", index %d)\n",
+                                  mountpoint, v_last_ssrc[index], index);
                     }
                     packet.data->type = mountpoint->codecs.video_pt;
                     /* Is there a recorder? (FIXME notice we only record the first substream, if simulcasting) */
@@ -1658,8 +1642,8 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                         continue;
                     }
                     memcpy(&source->audio_rtcp_addr, &remote, addrlen);
-                    JANUS_LOG(LOG_HUGE, "[%s] Got audio RTCP feedback: SSRC %" SCNu32 "\n",
-                              name, janus_rtcp_get_sender_ssrc(buffer, bytes));
+                    JANUS_LOG(LOG_HUGE, "[%p] Got audio RTCP feedback: SSRC %" SCNu32 "\n",
+                              mountpoint, janus_rtcp_get_sender_ssrc(buffer, bytes));
                     /* Relay on all sessions */
                     packet.is_video = FALSE;
                     packet.data = (janus_rtp_header *)buffer;
@@ -1680,8 +1664,8 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                         continue;
                     }
                     memcpy(&source->video_rtcp_addr, &remote, addrlen);
-                    JANUS_LOG(LOG_HUGE, "[%s] Got video RTCP feedback: SSRC %" SCNu32 "\n",
-                              name, janus_rtcp_get_sender_ssrc(buffer, bytes));
+                    JANUS_LOG(LOG_HUGE, "[%p] Got video RTCP feedback: SSRC %" SCNu32 "\n",
+                              mountpoint, janus_rtcp_get_sender_ssrc(buffer, bytes));
                     /* Relay on all sessions */
                     packet.is_video = TRUE;
                     packet.data = (janus_rtp_header *)buffer;
@@ -1725,7 +1709,6 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
         JANUS_LOG(LOG_VERB, "[Rtprx] 完成解除会话和挂载点间的相互引用\n");
     }
 
-    g_free(name);
     janus_refcount_decrease(&mountpoint->ref);
 
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成结束RTP转发线程\n");
@@ -1740,8 +1723,9 @@ janus_plugin *create(void)
     JANUS_LOG(LOG_VERB, "创建插件 %s\n", TMS_JANUS_PLUGIN_RTPRX_NAME);
     return &janus_plugin_tms_rtprx;
 }
-
-/* 初始化插件 */
+/** 
+ * 初始化插件 
+ */
 int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_path)
 {
     if (callback == NULL || config_path == NULL)
@@ -1749,7 +1733,60 @@ int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_pa
         return -1;
     }
 
+    /* Read configuration */
+    char filename[255];
+    g_snprintf(filename, 255, "%s/%s.jcfg", config_path, TMS_JANUS_PLUGIN_RTPRX_PACKAGE);
+    JANUS_LOG(LOG_VERB, "配置文件: %s\n", filename);
+    config = janus_config_parse(filename);
+    if (config == NULL)
+    {
+        config = janus_config_parse(filename);
+    }
+    if (config != NULL)
+        janus_config_print(config);
+
     g_atomic_int_set(&initialized, 1);
+
+    if (config != NULL)
+    {
+        janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
+        janus_config_item *range = janus_config_get(config, config_general, janus_config_type_item, "rtp_port_range");
+        if (range && range->value)
+        {
+            /* Split in min and max port */
+            char *maxport = strrchr(range->value, '-');
+            if (maxport != NULL)
+            {
+                *maxport = '\0';
+                maxport++;
+                if (janus_string_to_uint16(range->value, &rtp_range_min) < 0)
+                    JANUS_LOG(LOG_WARN, "Invalid RTP min port value: %s (assuming 0)\n", range->value);
+                if (janus_string_to_uint16(maxport, &rtp_range_max) < 0)
+                    JANUS_LOG(LOG_WARN, "Invalid RTP max port value: %s (assuming 0)\n", maxport);
+                maxport--;
+                *maxport = '-';
+            }
+            if (rtp_range_min > rtp_range_max)
+            {
+                uint16_t temp_port = rtp_range_min;
+                rtp_range_min = rtp_range_max;
+                rtp_range_max = temp_port;
+            }
+            if (rtp_range_min % 2)
+                rtp_range_min++; /* Pick an even port for RTP */
+            if (rtp_range_min > rtp_range_max)
+            {
+                JANUS_LOG(LOG_WARN, "Incorrect port range (%u -- %u), switching min and max\n", rtp_range_min, rtp_range_max);
+                uint16_t range_temp = rtp_range_max;
+                rtp_range_max = rtp_range_min;
+                rtp_range_min = range_temp;
+            }
+            if (rtp_range_max == 0)
+                rtp_range_max = 65535;
+            rtp_range_slider = rtp_range_min;
+            JANUS_LOG(LOG_VERB, "[RTPRX] RTP/RTCP port range: %u -- %u\n", rtp_range_min, rtp_range_max);
+        }
+    }
 
     sessions = g_hash_table_new_full(NULL, NULL, NULL, (GDestroyNotify)tms_rtprx_session_destroy);
     messages = g_async_queue_new_full((GDestroyNotify)tms_rtprx_message_free);
@@ -1768,7 +1805,9 @@ int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_pa
     JANUS_LOG(LOG_INFO, "[%s] 完成初始化( %p )\n", TMS_JANUS_PLUGIN_RTPRX_NAME, gateway);
     return 0;
 }
-/* 销毁插件 */
+/** 
+ * 销毁插件 
+ */
 void janus_plugin_destroy_tms_rtprx(void)
 {
     if (!g_atomic_int_get(&initialized))
