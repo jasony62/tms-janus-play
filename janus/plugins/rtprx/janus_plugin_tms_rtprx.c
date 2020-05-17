@@ -919,7 +919,9 @@ static void tms_rtprx_rtp_source_free(tms_rtprx_rtp_source *source)
 
     JANUS_LOG(LOG_VERB, "[Rtprx] 完成释放挂载点RTP源\n");
 }
-/* */
+/**
+ * 转发RTP包
+ */
 static void tms_rtprx_relay_rtp_packet(gpointer data, gpointer user_data)
 {
     JANUS_LOG(LOG_VERB, "[Rtprx] 执行转发RTP包\n");
@@ -1439,7 +1441,6 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     /* Is there a recorder? */
                     janus_rtp_header_update(packet.data, &source->context[0], FALSE, 0);
                     packet.data->ssrc = ntohl((uint32_t)mountpoint->id);
-                    janus_recorder_save_frame(source->arc, buffer, bytes);
                     packet.data->ssrc = ssrc;
                     /* Backup the actual timestamp and sequence number set by the restreamer, in case switching is involved */
                     packet.timestamp = ntohl(packet.data->timestamp);
@@ -1618,7 +1619,6 @@ static void *tms_rtprx_rtp_relay_thread(void *data)
                     if (index == 0)
                     {
                         packet.data->ssrc = ntohl((uint32_t)mountpoint->id);
-                        janus_recorder_save_frame(source->vrc, buffer, bytes);
                         packet.data->ssrc = ssrc;
                     }
                     /* Backup the actual timestamp and sequence number set by the restreamer, in case switching is involved */
