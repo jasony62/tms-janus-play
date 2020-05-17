@@ -14,6 +14,7 @@
         <input type="text" v-model="playfile" placeholder="要播放的文件">
         <button disabled>跳到指定位置播放</button>
       </span>
+      <button @click="refresh">刷新</button>
     </div>
     <div>
       <button @click="createSession" :disabled="!canCreateSession">创建会话</button>
@@ -34,6 +35,9 @@
         <button @click="pauseSource" :disabled="!canStopSource">暂停播放</button>
         <button @click="resumeSource" :disabled="!canStopSource">恢复播放</button>
         <button @click="stopSource" :disabled="!canStopSource">停止播放</button>
+        <span v-if="sourceType==='file'">
+          <button disabled>跳到指定位置播放</button>
+        </span>
       </div>
       <div>{{status}}</div>
     </div>
@@ -41,31 +45,17 @@
 </template>
 
 <script>
-import { JANUS_SERVER as server, FFMPEG_PUSH_ADDRESS } from '../global'
 import { ffmpeg } from '../apis'
-import io from 'socket.io-client'
-
-// eslint-disable-next-line
-const GlobalJanus = Janus
-
-let janus
-const opaqueId = 'rtprx-' + GlobalJanus.randomString(12)
-let rtprxHandle // 和Janus插件进行交互
+import baseMixin from './base.js'
 
 export default {
   name: 'JanusPlayfile',
+  mixins: [baseMixin],
   data() {
     return {
+      sourceType: 'test',
       duration: 10,
-      playfile: '',
-      status: '',
-      initialized: false,
-      connected: false,
-      attached: false,
-      isWebrtcUp: false,
-      sourcePorts: {},
-      ffmpegId: null,
-      sourceType: 'test'
+      playfile: ''
     }
   },
   computed: {
@@ -103,184 +93,6 @@ export default {
     }
   },
   methods: {
-    onPluginMessage(msg, remoteJsep) {
-      GlobalJanus.debug(' ::: Got a message :::')
-      GlobalJanus.debug(msg)
-      const result = msg['result']
-      if (result !== null && result !== undefined) {
-        if (result['status'] !== undefined && result['status'] !== null) {
-          const status = result['status']
-          switch (status) {
-            case 'mounted':
-              this.sourcePorts = result.ports
-              this.$emit('onMounted', result.ports)
-              break
-            case 'unmounted':
-              this.sourcePorts = {}
-              break
-          }
-        }
-      } else if (msg['error'] !== undefined && msg['error'] !== null) {
-        console.error(msg['error'])
-        return
-      }
-      if (remoteJsep !== undefined && remoteJsep !== null) {
-        GlobalJanus.debug('Handling Remote SDP as well...')
-        GlobalJanus.debug(remoteJsep)
-        // Offer from the plugin, let's answer
-        rtprxHandle.createAnswer({
-          jsep: remoteJsep,
-          // We want recvonly audio/video and, if negotiated, datachannels
-          media: { audioSend: false, videoSend: false, data: true },
-          success: localJsep => {
-            GlobalJanus.debug('Got Local SDP!')
-            GlobalJanus.debug(localJsep)
-            rtprxHandle.send({
-              message: { request: 'answer.webrtc' },
-              jsep: localJsep
-            })
-          },
-          error: error => {
-            GlobalJanus.error('WebRTC error:', error)
-          }
-        })
-      }
-    },
-    PluginOnRemoteStream(stream) {
-      GlobalJanus.debug(' ::: Got a remote stream :::')
-      GlobalJanus.debug(stream)
-      GlobalJanus.attachMediaStream(
-        document.querySelector('#remotevideo'),
-        stream
-      )
-    },
-    createSession() {
-      return new Promise((resolve, reject) => {
-        janus = new GlobalJanus({
-          server: server,
-          success: () => {
-            this.connected = true
-            resolve()
-          },
-          error: () => {
-            reject()
-          },
-          destroyed: () => {
-            this.connected = false
-          }
-        })
-      })
-    },
-    destroySession() {
-      return new Promise((resolve, reject) => {
-        janus.destroy({
-          success: () => {
-            this.reset()
-            resolve()
-          },
-          error: () => {
-            this.reset()
-            reject()
-          }
-        })
-      })
-    },
-    attach() {
-      return new Promise(resolve => {
-        janus.attach({
-          plugin: 'janus.plugin.tms.rtprx',
-          opaqueId: opaqueId,
-          success: pluginHandle => {
-            rtprxHandle = pluginHandle
-            this.attached = true
-            resolve()
-          },
-          webrtcState: isWebrtcUp => {
-            this.isWebrtcUp = isWebrtcUp
-            this.$emit(isWebrtcUp ? 'onWebrtcUp' : 'onHangup')
-          },
-          oncleanup: () => (this.isWebrtcUp = false),
-          error: () => {},
-          onmessage: this.onPluginMessage,
-          onremotestream: this.PluginOnRemoteStream
-        })
-      })
-    },
-    detach() {
-      if (!rtprxHandle) return Promise.reject()
-      return new Promise(resolve => {
-        rtprxHandle.detach({
-          success: () => {
-            this.attached = false
-            rtprxHandle = null
-            resolve()
-          }
-        })
-      })
-    },
-    createWebrtc() {
-      // 获得服务端sdp
-      return new Promise(resolve => {
-        const body = { request: 'create.webrtc' }
-        rtprxHandle.send({
-          message: body,
-          success: () => {
-            resolve()
-          }
-        })
-      })
-    },
-    hangupWebrtc() {
-      rtprxHandle.hangup()
-    },
-    prepareSource() {
-      return new Promise(resolve => {
-        const body = { request: 'prepare.source' }
-        rtprxHandle.send({
-          message: body,
-          success: () => {
-            resolve()
-          }
-        })
-      })
-    },
-    destroySource() {
-      const body = { request: 'destroy.source' }
-      rtprxHandle.send({ message: body })
-    },
-    playing() {
-      this.status = 'playing'
-      this.$emit('onPlaying')
-    },
-    preparePlay() {
-      return new Promise(resolve => {
-        this.createSession().then(() => {
-          this.attach().then(() => {
-            let p1, p2
-            p1 = new Promise(resolve => {
-              this.$once('onWebrtcUp', () => {
-                this.prepareSource().then(() => {
-                  this.$once('onMounted', sourcePorts => {
-                    resolve(sourcePorts)
-                  })
-                })
-              })
-            })
-            p2 = new Promise(resolve => {
-              this.$once('onPlaying', () => {
-                resolve()
-              })
-            })
-            this.createWebrtc().then(() => {
-              Promise.all([p1, p2]).then(values => {
-                const [sourcePorts] = values
-                resolve(sourcePorts)
-              })
-            })
-          })
-        })
-      })
-    },
     playSource() {
       Promise.resolve(this.sourcePorts)
         .then(sourcePorts => {
@@ -324,33 +136,7 @@ export default {
     resumeSource() {
       const api = ffmpeg[this.sourceType]
       if (api) api.resume(this.ffmpegId)
-    },
-    reset() {
-      this.sourcePorts = {}
-      this.isWebrtcUp = false
-      this.attached = false
-      this.connected = false
     }
-  },
-  mounted() {
-    GlobalJanus.init({
-      debug: 'all',
-      callback: () => {
-        this.initialized = true
-      }
-    })
-    // 接收推送事件
-    const socket = io(FFMPEG_PUSH_ADDRESS, { reconnectionAttempts: 10 })
-    socket.on('tms-koa-push', data => {
-      this.status = data.status
-    })
-    socket.on('tms-koa-ffmpeg', data => {
-      this.status = data.status
-      if (data.status === 'ended' || data.status === 'killed') {
-        this.ffmpegId = null
-      }
-    })
-    this.socket = socket
   }
 }
 </script>

@@ -4,11 +4,18 @@ module.exports = {
   filenameHashing: true,
   pages: {
     index: {
-      entry: 'src/main.js',
+      entry: 'src/player.js',
       template: 'public/index.html',
       filename: './index.html',
       title: process.env.VUE_APP_TITLE,
       chunks: ['chunk-vendors', 'chunk-common', 'index'],
+    },
+    demo: {
+      entry: 'src/demo.js',
+      template: 'public/index.html',
+      filename: './demo.html',
+      title: process.env.VUE_APP_TITLE,
+      chunks: ['chunk-vendors', 'chunk-common', 'demo'],
     },
   },
   parallel: require('os').cpus().length > 1,
