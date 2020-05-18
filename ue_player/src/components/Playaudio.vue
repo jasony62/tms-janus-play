@@ -10,6 +10,7 @@
       <button @click="stopSource" :disabled="!canStopSource">停止播放</button>
       <button disabled>跳到指定位置播放</button>
     </div>
+    <div v-if="format">{{format}}</div>
     <div>{{status}}</div>
   </div>
 </template>
@@ -27,6 +28,9 @@ export default {
   props: {
     file: { type: String, default: '' }
   },
+  data() {
+    return { format: null }
+  },
   methods: {
     PluginOnRemoteStream(stream) {
       GlobalJanus.debug(' ::: Got a remote stream :::')
@@ -42,15 +46,16 @@ export default {
           if (parseInt(sourcePorts.audioport)) {
             return sourcePorts
           } else {
-            return this.preparePlay()
+            return this.preparePlay({ video: false })
           }
         })
         .then(sourcePorts => {
           const { audioport } = sourcePorts
           ffmpeg.file
             .play(this.socket.id, this.file, audioport)
-            .then(result => {
-              this.ffmpegId = result.cid
+            .then(({ cid, format }) => {
+              this.ffmpegId = cid
+              this.format = format
               this.$once('onStopped', this.destroySession)
             })
         })

@@ -51,8 +51,8 @@ export default {
           const { audioport, videoport } = sourcePorts
           ffmpeg.test
             .play(this.socket.id, audioport, videoport, this.duration)
-            .then(result => {
-              this.ffmpegId = result.cid
+            .then(({ cid }) => {
+              this.ffmpegId = cid
               this.$once('onStopped', this.destroySession)
             })
         })

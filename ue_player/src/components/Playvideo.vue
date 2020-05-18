@@ -10,6 +10,7 @@
       <button @click="stopSource" :disabled="!canStopSource">停止播放</button>
       <button disabled>跳到指定位置播放</button>
     </div>
+    <div v-if="format">{{format}}</div>
     <div>{{status}}</div>
   </div>
 </template>
@@ -26,6 +27,9 @@ export default {
   mixins: [baseMixin],
   props: {
     file: { type: String, default: '' }
+  },
+  data() {
+    return { format: null }
   },
   methods: {
     PluginOnRemoteStream(stream) {
@@ -52,8 +56,9 @@ export default {
           const { audioport, videoport } = sourcePorts
           ffmpeg.file
             .play(this.socket.id, this.file, audioport, videoport)
-            .then(result => {
-              this.ffmpegId = result.cid
+            .then(({ cid, format }) => {
+              this.ffmpegId = cid
+              this.format = format
               this.$once('onStopped', this.destroySession)
             })
         })

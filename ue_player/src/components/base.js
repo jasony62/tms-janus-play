@@ -153,11 +153,16 @@ export default {
         })
       })
     },
-    createWebrtc() {
+    createWebrtc(options) {
       if (!this.rtprxHandle) return Promise.reject()
       // 获得服务端sdp
       return new Promise((resolve) => {
         const body = { request: 'create.webrtc' }
+        if (options) {
+          const { audio, video } = options
+          if (audio === false) body.audio = false
+          if (video === false) body.video = false
+        }
         this.rtprxHandle.send({
           message: body,
           success: () => {
@@ -169,10 +174,15 @@ export default {
     hangupWebrtc() {
       if (this.rtprxHandle) this.rtprxHandle.hangup()
     },
-    prepareSource() {
+    prepareSource(options) {
       if (!this.rtprxHandle) return Promise.reject()
       return new Promise((resolve) => {
         const body = { request: 'prepare.source' }
+        if (options) {
+          const { audio, video } = options
+          if (audio === false) body.audio = false
+          if (video === false) body.video = false
+        }
         this.rtprxHandle.send({
           message: body,
           success: () => {
@@ -191,14 +201,14 @@ export default {
       this.status = 'playing'
       this.$emit('onPlaying')
     },
-    preparePlay() {
+    preparePlay(options = {}) {
       return new Promise((resolve) => {
         this.createSession().then(() => {
           this.attach().then(() => {
             let p1, p2
             p1 = new Promise((resolve) => {
               this.$once('onWebrtcUp', () => {
-                this.prepareSource().then(() => {
+                this.prepareSource(options).then(() => {
                   this.$once('onMounted', (sourcePorts) => {
                     resolve(sourcePorts)
                   })
@@ -210,7 +220,7 @@ export default {
                 resolve()
               })
             })
-            this.createWebrtc().then(() => {
+            this.createWebrtc(options).then(() => {
               Promise.all([p1, p2]).then((values) => {
                 const [sourcePorts] = values
                 resolve(sourcePorts)

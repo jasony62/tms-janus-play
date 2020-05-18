@@ -372,13 +372,17 @@ static void *tms_rtprx_async_message_thread(void *data)
 
         json_t *request = json_object_get(root, "request");
         const char *request_text = json_string_value(request);
-        json_t *result = NULL;
+        json_t *audio = json_object_get(root, "audio");
+        gboolean doaudio = audio ? json_is_true(audio) : TRUE;
+        json_t *video = json_object_get(root, "video");
+        gboolean dovideo = video ? json_is_true(video) : TRUE;
+        json_t *result = NULL; // 返回结果
 
         if (!strcasecmp(request_text, "create.webrtc"))
         {
             session->stopping = FALSE;
-            session->audio = TRUE;    /* True by default */
-            session->video = TRUE;    /* True by default */
+            session->audio = doaudio; /* True by default */
+            session->video = dovideo; /* True by default */
             session->sdp_version = 1; /* This needs to be increased when it changes */
             session->sdp_sessid = janus_get_real_time();
             sdp_type = "offer"; /* We're always going to do the offer ourselves, never answer */
@@ -395,31 +399,39 @@ static void *tms_rtprx_async_message_thread(void *data)
             g_strlcat(sdptemp, buffer, 2048);
             g_strlcat(sdptemp, "t=0 0\r\n", 2048);
             /* Add audio line */
-            g_snprintf(buffer, 512, "m=audio 1 RTP/SAVPF %d\r\n"
-                                    "c=IN IP4 1.1.1.1\r\n",
-                       acodec);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", acodec, artpmap);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
-            g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
-            g_strlcat(sdptemp, buffer, 2048);
+            if (doaudio)
+            {
+
+                g_snprintf(buffer, 512, "m=audio 1 RTP/SAVPF %d\r\n"
+                                        "c=IN IP4 1.1.1.1\r\n",
+                           acodec);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", acodec, artpmap);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
+                g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
+                g_strlcat(sdptemp, buffer, 2048);
+            }
             /* Add video line */
-            g_snprintf(buffer, 512, "m=video 1 RTP/SAVPF %d\r\n"
-                                    "c=IN IP4 1.1.1.1\r\n",
-                       vcodec);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", vcodec, vrtpmap);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512, "a=rtcp-fb:%d nack\r\n", vcodec);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512, "a=rtcp-fb:%d nack pli\r\n", vcodec);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512, "a=rtcp-fb:%d goog-remb\r\n", vcodec);
-            g_strlcat(sdptemp, buffer, 2048);
-            g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
-            g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
-            g_strlcat(sdptemp, buffer, 2048);
+            if (dovideo)
+            {
+
+                g_snprintf(buffer, 512, "m=video 1 RTP/SAVPF %d\r\n"
+                                        "c=IN IP4 1.1.1.1\r\n",
+                           vcodec);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", vcodec, vrtpmap);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_snprintf(buffer, 512, "a=rtcp-fb:%d nack\r\n", vcodec);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_snprintf(buffer, 512, "a=rtcp-fb:%d nack pli\r\n", vcodec);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_snprintf(buffer, 512, "a=rtcp-fb:%d goog-remb\r\n", vcodec);
+                g_strlcat(sdptemp, buffer, 2048);
+                g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
+                g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
+                g_strlcat(sdptemp, buffer, 2048);
+            }
 
             sdp = g_strdup(sdptemp);
             JANUS_LOG(LOG_VERB, "[Rtprx] 返回[ %s ]SDP:\n%s\n", sdp_type, sdp);
@@ -428,7 +440,7 @@ static void *tms_rtprx_async_message_thread(void *data)
         {
             JANUS_LOG(LOG_VERB, "[Rtprx] 请求创建RTP媒体数据源命令\n");
             session->paused = FALSE;
-            tms_rtprx_mountpoint *mp = tms_rtprx_create_rtp_mountpoint(TRUE, TRUE);
+            tms_rtprx_mountpoint *mp = tms_rtprx_create_rtp_mountpoint(doaudio, dovideo);
             if (mp)
             {
                 /* 建立会话和播放源的双向引用 */
@@ -442,10 +454,16 @@ static void *tms_rtprx_async_message_thread(void *data)
                 /* 返回挂载点信息 */
                 tms_rtprx_rtp_source *source = mp->source;
                 json_t *ports = json_object();
-                json_object_set_new(ports, "audioport", json_integer(source->audio_port));
-                json_object_set_new(ports, "audiortcpport", json_integer(source->audio_rtcp_port));
-                json_object_set_new(ports, "videoport", json_integer(source->video_port[0]));
-                json_object_set_new(ports, "videortcpport", json_integer(source->video_rtcp_port));
+                if (doaudio)
+                {
+                    json_object_set_new(ports, "audioport", json_integer(source->audio_port));
+                    json_object_set_new(ports, "audiortcpport", json_integer(source->audio_rtcp_port));
+                }
+                if (dovideo)
+                {
+                    json_object_set_new(ports, "videoport", json_integer(source->video_port[0]));
+                    json_object_set_new(ports, "videortcpport", json_integer(source->video_rtcp_port));
+                }
                 result = json_object();
                 json_object_set_new(result, "ports", ports);
                 json_object_set_new(result, "status", json_string("mounted"));
