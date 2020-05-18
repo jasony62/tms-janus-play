@@ -1,13 +1,14 @@
 <template>
   <div class="janus-player">
     <div>
-      <video id="remotevideo" width="320" height="240" autoplay playsinline @playing="playing" />
+      <audio id="remoteaudio" width="320" height="240" autoplay @playing="playing" />
     </div>
     <div>
-      <button @click="playSource">播放视频</button>
+      <button @click="playSource">播放音频</button>
       <button @click="pauseSource" :disabled="!canStopSource">暂停播放</button>
       <button @click="resumeSource" :disabled="!canStopSource">恢复播放</button>
       <button @click="stopSource" :disabled="!canStopSource">停止播放</button>
+      <button disabled>跳到指定位置播放</button>
     </div>
     <div>{{status}}</div>
   </div>
@@ -21,36 +22,33 @@ import baseMixin from './base.js'
 const GlobalJanus = Janus
 
 export default {
-  name: 'Playtest',
+  name: 'Playfile',
   mixins: [baseMixin],
   props: {
-    duration: { type: Number, default: 10 }
+    file: { type: String, default: '' }
   },
   methods: {
     PluginOnRemoteStream(stream) {
       GlobalJanus.debug(' ::: Got a remote stream :::')
       GlobalJanus.debug(stream)
       GlobalJanus.attachMediaStream(
-        document.querySelector('#remotevideo'),
+        document.querySelector('#remoteaudio'),
         stream
       )
     },
     playSource() {
       Promise.resolve(this.sourcePorts)
         .then(sourcePorts => {
-          if (
-            parseInt(sourcePorts.videoport) ||
-            parseInt(sourcePorts.audioport)
-          ) {
+          if (parseInt(sourcePorts.audioport)) {
             return sourcePorts
           } else {
             return this.preparePlay()
           }
         })
         .then(sourcePorts => {
-          const { audioport, videoport } = sourcePorts
-          ffmpeg.test
-            .play(this.socket.id, audioport, videoport, this.duration)
+          const { audioport } = sourcePorts
+          ffmpeg.file
+            .play(this.socket.id, this.file, audioport)
             .then(result => {
               this.ffmpegId = result.cid
               this.$once('onStopped', this.destroySession)
@@ -58,19 +56,19 @@ export default {
         })
     },
     stopSource() {
-      ffmpeg.test.stop(this.ffmpegId)
+      ffmpeg.file.stop(this.ffmpegId)
     },
     pauseSource() {
-      ffmpeg.test.pause(this.ffmpegId)
+      ffmpeg.file.pause(this.ffmpegId)
     },
     resumeSource() {
-      ffmpeg.test.resume(this.ffmpegId)
+      ffmpeg.file.resume(this.ffmpegId)
     }
   }
 }
 </script>
 <style scoped>
-#remotevideo {
+#remoteaudio {
   border: 1px solid gray;
 }
 </style>

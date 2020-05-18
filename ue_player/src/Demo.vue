@@ -2,7 +2,7 @@
   <div id="demo">
     <div>
       <div>
-        <label>播放时长（秒）：<input type="number" v-model="duration"></label>
+        <label>播放测试流时长（秒）：<input type="number" v-model="duration"></label>
       </div>
       <div>
         <div>{{testSrc}}</div>
@@ -16,19 +16,34 @@
     </div>
     <div>
       <div>
-        <label>要播放的文件：<input type="text" v-model="file"></label>
+        <label>要播放的视频文件：<input type="text" v-model="videoFile"></label>
       </div>
       <div>
         <div>{{videoSrc}}</div>
       </div>
       <div>
-        <button @click="renderVideo" :disabled="!file">生成播放器</button>
+        <button @click="renderVideo" :disabled="!videoFile">生成播放器</button>
       </div>
       <div>
         <iframe id="playVideo"></iframe>
       </div>
     </div>
+    <div>
+      <div>
+        <label>要播放的音频文件：<input type="text" v-model="audioFile"></label>
+      </div>
+      <div>
+        <div>{{audioSrc}}</div>
+      </div>
+      <div>
+        <button @click="renderAudio" :disabled="!audioFile">生成播放器</button>
+      </div>
+      <div>
+        <iframe id="playAudio"></iframe>
+      </div>
+    </div>
   </div>
+
 </template>
 
 <script>
@@ -37,7 +52,8 @@ export default {
   data() {
     return {
       duration: 10,
-      file: ''
+      videoFile: '',
+      audioFile: ''
     }
   },
   computed: {
@@ -45,7 +61,10 @@ export default {
       return `index.html?source=test&duration=${this.duration}`
     },
     videoSrc() {
-      return `index.html?source=video&file=${this.file}`
+      return `index.html?source=video&file=${this.videoFile}`
+    },
+    audioSrc() {
+      return `index.html?source=audio&file=${this.audioFile}`
     }
   },
   methods: {
@@ -54,6 +73,9 @@ export default {
     },
     renderVideo() {
       document.querySelector('#playVideo').src = this.videoSrc
+    },
+    renderAudio() {
+      document.querySelector('#playAudio').src = this.audioSrc
     }
   }
 }
@@ -63,5 +85,9 @@ export default {
 #playVideo {
   width: 640px;
   height: 320px;
+}
+#playAudio {
+  width: 640px;
+  height: 160px;
 }
 </style>

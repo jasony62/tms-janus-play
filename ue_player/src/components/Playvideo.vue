@@ -18,6 +18,9 @@
 import { ffmpeg } from '../apis'
 import baseMixin from './base.js'
 
+// eslint-disable-next-line
+const GlobalJanus = Janus
+
 export default {
   name: 'Playfile',
   mixins: [baseMixin],
@@ -25,6 +28,14 @@ export default {
     file: { type: String, default: '' }
   },
   methods: {
+    PluginOnRemoteStream(stream) {
+      GlobalJanus.debug(' ::: Got a remote stream :::')
+      GlobalJanus.debug(stream)
+      GlobalJanus.attachMediaStream(
+        document.querySelector('#remotevideo'),
+        stream
+      )
+    },
     playSource() {
       Promise.resolve(this.sourcePorts)
         .then(sourcePorts => {

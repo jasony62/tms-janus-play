@@ -94,11 +94,6 @@ export default {
         })
       }
     },
-    PluginOnRemoteStream(stream) {
-      GlobalJanus.debug(' ::: Got a remote stream :::')
-      GlobalJanus.debug(stream)
-      GlobalJanus.attachMediaStream(document.querySelector('#remotevideo'), stream)
-    },
     createSession() {
       return new Promise((resolve, reject) => {
         this.janus = new GlobalJanus({

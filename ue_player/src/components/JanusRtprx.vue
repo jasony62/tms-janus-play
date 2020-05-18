@@ -93,6 +93,14 @@ export default {
     }
   },
   methods: {
+    PluginOnRemoteStream(stream) {
+      GlobalJanus.debug(' ::: Got a remote stream :::')
+      GlobalJanus.debug(stream)
+      GlobalJanus.attachMediaStream(
+        document.querySelector('#remotevideo'),
+        stream
+      )
+    },
     playSource() {
       Promise.resolve(this.sourcePorts)
         .then(sourcePorts => {

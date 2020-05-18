@@ -6,6 +6,9 @@
     <div v-else-if="source==='video'">
       <playvideo :file="file" />
     </div>
+    <div v-else-if="source==='audio'">
+      <playaudio :file="file" />
+    </div>
     <div v-else>
       <div>无法识别的类型</div>
     </div>
@@ -15,6 +18,7 @@
 <script>
 import queryString from 'query-string'
 import Playvideo from './components/Playvideo.vue'
+import Playaudio from './components/Playaudio.vue'
 import Playtest from './components/Playtest.vue'
 
 function setPlayerParameters(vm, params) {
@@ -23,6 +27,7 @@ function setPlayerParameters(vm, params) {
       vm.duration = parseInt(params.duration) || 10
       break
     case 'video':
+    case 'audio':
       vm.file = params.file
       break
   }
@@ -33,7 +38,8 @@ export default {
   name: 'Player',
   components: {
     Playtest,
-    Playvideo
+    Playvideo,
+    Playaudio
   },
   data() {
     return {

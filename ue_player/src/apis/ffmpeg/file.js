@@ -6,10 +6,13 @@ const base = `${FFMPEG_API_ADDRESS}/rtp/file`
 const api = {
   base,
   play(socketid, path, aport, vport) {
+    const params = { socketid, path, address: FFMPEG_RTP_TARGET }
+    if (typeof FFMPEG_VCODEC === 'string') params.vcodec = FFMPEG_VCODEC
+    if (parseInt(aport)) params.aport = aport
+    if (parseInt(vport)) params.vport = vport
+
     return this.tmsAxios()
-      .get(`${base}/play`, {
-        params: { socketid, path, address: FFMPEG_RTP_TARGET, aport, vport, vcodec: FFMPEG_VCODEC },
-      })
+      .get(`${base}/play`, { params })
       .then((rst) => rst.data.result)
   },
 }
