@@ -5,11 +5,12 @@ const base = `${FFMPEG_API_ADDRESS}/rtp/file`
 
 const api = {
   base,
-  play(socketid, path, aport, vport) {
+  play(socketid, path, aport, vport, seek) {
     const params = { socketid, path, address: FFMPEG_RTP_TARGET }
     if (typeof FFMPEG_VCODEC === 'string') params.vcodec = FFMPEG_VCODEC
     if (parseInt(aport)) params.aport = aport
     if (parseInt(vport)) params.vport = vport
+    if (seek) params.seek = seek
 
     return this.tmsAxios()
       .get(`${base}/play`, { params })

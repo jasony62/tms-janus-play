@@ -8,7 +8,6 @@
       <button @click="pauseSource" :disabled="!canStopSource">暂停播放</button>
       <button @click="resumeSource" :disabled="!canStopSource">恢复播放</button>
       <button @click="stopSource" :disabled="!canStopSource">停止播放</button>
-      <button disabled>跳到指定位置播放</button>
     </div>
     <div v-if="format">{{format}}</div>
     <div>{{status}}</div>
@@ -26,7 +25,8 @@ export default {
   name: 'Playfile',
   mixins: [baseMixin],
   props: {
-    file: { type: String, default: '' }
+    file: { type: String, default: '' },
+    seek: { type: String, default: '' }
   },
   data() {
     return { format: null }
@@ -52,7 +52,7 @@ export default {
         .then(sourcePorts => {
           const { audioport } = sourcePorts
           ffmpeg.file
-            .play(this.socket.id, this.file, audioport)
+            .play(this.socket.id, this.file, audioport, null, this.seek)
             .then(({ cid, format }) => {
               this.ffmpegId = cid
               this.format = format

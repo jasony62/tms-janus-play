@@ -19,6 +19,9 @@
         <label>要播放的视频文件：<input type="text" v-model="videoFile"></label>
       </div>
       <div>
+        <label>开始播放位置：<input type="text" v-model="videoSeek" placeholder="秒数或时间点"></label>
+      </div>
+      <div>
         <div>{{videoSrc}}</div>
       </div>
       <div>
@@ -31,6 +34,9 @@
     <div>
       <div>
         <label>要播放的音频文件：<input type="text" v-model="audioFile"></label>
+      </div>
+      <div>
+        <label>开始播放位置：<input type="text" v-model="audioSeek" placeholder="秒数或时间点"></label>
       </div>
       <div>
         <div>{{audioSrc}}</div>
@@ -53,7 +59,9 @@ export default {
     return {
       duration: 10,
       videoFile: '',
-      audioFile: ''
+      videoSeek: '',
+      audioFile: '',
+      audioSeek: ''
     }
   },
   computed: {
@@ -61,10 +69,10 @@ export default {
       return `index.html?source=test&duration=${this.duration}`
     },
     videoSrc() {
-      return `index.html?source=video&file=${this.videoFile}`
+      return `index.html?source=video&file=${this.videoFile}&seek=${this.videoSeek}`
     },
     audioSrc() {
-      return `index.html?source=audio&file=${this.audioFile}`
+      return `index.html?source=audio&file=${this.audioFile}&seek=${this.audioSeek}`
     }
   },
   methods: {

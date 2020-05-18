@@ -4,10 +4,10 @@
       <playtest :duration="duration" />
     </div>
     <div v-else-if="source==='video'">
-      <playvideo :file="file" />
+      <playvideo :file="file" :seek="seek" />
     </div>
     <div v-else-if="source==='audio'">
-      <playaudio :file="file" />
+      <playaudio :file="file" :seek="seek" />
     </div>
     <div v-else>
       <div>无法识别的类型</div>
@@ -29,6 +29,7 @@ function setPlayerParameters(vm, params) {
     case 'video':
     case 'audio':
       vm.file = params.file
+      vm.seek = params.seek
       break
   }
   vm.source = params.source
@@ -45,7 +46,8 @@ export default {
     return {
       source: 'test',
       duration: 10,
-      file: ''
+      file: '',
+      seek: ''
     }
   },
   created() {
