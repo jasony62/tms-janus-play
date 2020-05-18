@@ -22,6 +22,14 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 参考：https://janus.conf.meetecho.com
 
+| 变量           | 说明 | 默认值 |
+| -------------- | ---- | ------ |
+| rtp_port_range |      |        |
+| audiopt        |      |        |
+| audiortpmap    |      |        |
+| videopt        |      |        |
+| videortpmap    |      |        |
+
 ## ffmpeg
 
 用`ffmpeg`控制媒体文件播放。

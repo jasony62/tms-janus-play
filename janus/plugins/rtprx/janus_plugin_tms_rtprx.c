@@ -74,6 +74,11 @@ static janus_callbacks *gateway = NULL;
 static uint16_t rtp_range_min = DEFAULT_RTP_RANGE_MIN;
 static uint16_t rtp_range_max = DEFAULT_RTP_RANGE_MAX;
 static uint16_t rtp_range_slider = DEFAULT_RTP_RANGE_MIN;
+static uint8_t acodec = 0;
+static char *artpmap = NULL, *afmtp = NULL;
+static uint8_t vcodec = 0;
+static char *vrtpmap = NULL, *vfmtp = NULL;
+
 static janus_mutex fd_mutex = JANUS_MUTEX_INITIALIZER;
 
 /* used for audio/video fd and RTCP fd */
@@ -180,9 +185,7 @@ typedef struct tms_rtprx_mountpoint
     janus_refcount ref;
 } tms_rtprx_mountpoint;
 
-static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
-    gboolean doaudio, uint8_t acodec, char *artpmap,
-    gboolean dovideo, uint8_t vcodec, char *vrtpmap);
+static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(gboolean doaudio, gboolean dovideo);
 
 /* Static configuration instance */
 static janus_config *config = NULL;
@@ -392,39 +395,27 @@ static void *tms_rtprx_async_message_thread(void *data)
             g_strlcat(sdptemp, buffer, 2048);
             g_strlcat(sdptemp, "t=0 0\r\n", 2048);
             /* Add audio line */
-            g_snprintf(buffer, 512,
-                       "m=audio 1 RTP/SAVPF %d\r\n"
-                       "c=IN IP4 1.1.1.1\r\n",
-                       111);
+            g_snprintf(buffer, 512, "m=audio 1 RTP/SAVPF %d\r\n"
+                                    "c=IN IP4 1.1.1.1\r\n",
+                       acodec);
             g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512,
-                       "a=rtpmap:%d %s\r\n",
-                       111, "opus/48000/2");
+            g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", acodec, artpmap);
             g_strlcat(sdptemp, buffer, 2048);
             g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
             g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
             g_strlcat(sdptemp, buffer, 2048);
             /* Add video line */
-            g_snprintf(buffer, 512,
-                       "m=video 1 RTP/SAVPF %d\r\n"
-                       "c=IN IP4 1.1.1.1\r\n",
-                       100);
+            g_snprintf(buffer, 512, "m=video 1 RTP/SAVPF %d\r\n"
+                                    "c=IN IP4 1.1.1.1\r\n",
+                       vcodec);
             g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512,
-                       "a=rtpmap:%d %s\r\n",
-                       100, "VP8/90000");
+            g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", vcodec, vrtpmap);
             g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512,
-                       "a=rtcp-fb:%d nack\r\n",
-                       100);
+            g_snprintf(buffer, 512, "a=rtcp-fb:%d nack\r\n", vcodec);
             g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512,
-                       "a=rtcp-fb:%d nack pli\r\n",
-                       100);
+            g_snprintf(buffer, 512, "a=rtcp-fb:%d nack pli\r\n", vcodec);
             g_strlcat(sdptemp, buffer, 2048);
-            g_snprintf(buffer, 512,
-                       "a=rtcp-fb:%d goog-remb\r\n",
-                       100);
+            g_snprintf(buffer, 512, "a=rtcp-fb:%d goog-remb\r\n", vcodec);
             g_strlcat(sdptemp, buffer, 2048);
             g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
             g_snprintf(buffer, 512, "a=extmap:%d %s\r\n", 1, JANUS_RTP_EXTMAP_MID);
@@ -437,13 +428,7 @@ static void *tms_rtprx_async_message_thread(void *data)
         {
             JANUS_LOG(LOG_VERB, "[Rtprx] 请求创建RTP媒体数据源命令\n");
             session->paused = FALSE;
-            tms_rtprx_mountpoint *mp = tms_rtprx_create_rtp_mountpoint(
-                TRUE,
-                111,
-                "opus/48000/2",
-                TRUE,
-                100,
-                "VP8/90000");
+            tms_rtprx_mountpoint *mp = tms_rtprx_create_rtp_mountpoint(TRUE, TRUE);
             if (mp)
             {
                 /* 建立会话和播放源的双向引用 */
@@ -712,16 +697,13 @@ static int tms_rtprx_allocate_port_pair(const char *name, const char *media,
     }
     return -1;
 }
-static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
-    gboolean doaudio, uint8_t acodec, char *artpmap,
-    gboolean dovideo, uint8_t vcodec, char *vrtpmap)
+static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(gboolean doaudio, gboolean dovideo)
 {
     JANUS_LOG(LOG_VERB, "[Rtprx] 开始创建挂载点\n");
 
     uint16_t aport = 0, artcpport = 0;
     int audio_fd = -1;
     int audio_rtcp_fd = -1;
-
     if (doaudio)
     {
         int aports[2];
@@ -733,27 +715,8 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
         }
         aport = aports[0];
         artcpport = aports[1];
-        int audio_fd = audio_fds.fd;
-        int audio_rtcp_fd = audio_fds.rtcp_fd;
-
-        // audio_fd = tms_rtprx_create_fd(aport, "Audio", "audio");
-        // if (audio_fd < 0)
-        // {
-        //     JANUS_LOG(LOG_ERR, "Can't bind to port %d for audio...\n", aport);
-        //     return NULL;
-        // }
-        // aport = tms_rtprx_get_fd_port(audio_fd);
-        // if (artcpport > 0)
-        // {
-        //     audio_rtcp_fd = tms_rtprx_create_fd(artcpport, "Audio", "audio");
-        //     if (audio_rtcp_fd < 0)
-        //     {
-        //         JANUS_LOG(LOG_ERR, "Can't bind to port %d for audio rtcp...\n", aport + 1);
-        //         if (audio_fd > -1)
-        //             close(audio_fd);
-        //         return NULL;
-        //     }
-        // }
+        audio_fd = audio_fds.fd;
+        audio_rtcp_fd = audio_fds.rtcp_fd;
     }
     uint16_t vport = 0, vrtcpport = 0;
     int video_fd[3] = {-1, -1, -1};
@@ -771,32 +734,6 @@ static tms_rtprx_mountpoint *tms_rtprx_create_rtp_mountpoint(
         vrtcpport = vports[1];
         video_fd[0] = video_fds.fd;
         video_rtcp_fd = video_fds.rtcp_fd;
-        // video_fd[0] = tms_rtprx_create_fd(vport, "Video", "video");
-        // if (video_fd[0] < 0)
-        // {
-        //     JANUS_LOG(LOG_ERR, "Can't bind to port %d for video...\n", vport);
-        //     if (audio_fd > -1)
-        //         close(audio_fd);
-        //     if (audio_rtcp_fd > -1)
-        //         close(audio_rtcp_fd);
-        //     return NULL;
-        // }
-        // vport = tms_rtprx_get_fd_port(video_fd[0]);
-        // if (vrtcpport > 0)
-        // {
-        //     video_rtcp_fd = tms_rtprx_create_fd(vrtcpport, "Video", "video");
-        //     if (video_rtcp_fd < 0)
-        //     {
-        //         JANUS_LOG(LOG_ERR, "Can't bind to port %d for video rtcp...\n", vport + 1);
-        //         if (audio_fd > -1)
-        //             close(audio_fd);
-        //         if (audio_rtcp_fd > -1)
-        //             close(audio_rtcp_fd);
-        //         if (video_fd[0] > -1)
-        //             close(video_fd[0]);
-        //         return NULL;
-        //     }
-        // }
     }
     tms_rtprx_mountpoint *mp = g_malloc0(sizeof(tms_rtprx_mountpoint));
     mp->id = 1;
@@ -1750,6 +1687,7 @@ int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_pa
     if (config != NULL)
     {
         janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
+        /* 设置可用端口范围 */
         janus_config_item *range = janus_config_get(config, config_general, janus_config_type_item, "rtp_port_range");
         if (range && range->value)
         {
@@ -1786,6 +1724,20 @@ int janus_plugin_init_tms_rtprx(janus_callbacks *callback, const char *config_pa
             rtp_range_slider = rtp_range_min;
             JANUS_LOG(LOG_VERB, "[RTPRX] RTP/RTCP port range: %u -- %u\n", rtp_range_min, rtp_range_max);
         }
+        /* 音频格式 */
+        janus_config_item *audiopt = janus_config_get(config, config_general, janus_config_type_item, "audiopt");
+        acodec = (audiopt && audiopt->value) ? atoi(audiopt->value) : 0;
+        janus_config_item *audiortpmap = janus_config_get(config, config_general, janus_config_type_item, "audiortpmap");
+        artpmap = audiortpmap ? (char *)audiortpmap->value : NULL;
+        janus_config_item *audiofmtp = janus_config_get(config, config_general, janus_config_type_item, "audiofmtp");
+        afmtp = audiofmtp ? (char *)audiofmtp->value : NULL;
+        /* 视频格式 */
+        janus_config_item *videopt = janus_config_get(config, config_general, janus_config_type_item, "videopt");
+        vcodec = (videopt && videopt->value) ? atoi(videopt->value) : 0;
+        janus_config_item *videortpmap = janus_config_get(config, config_general, janus_config_type_item, "videortpmap");
+        vrtpmap = videortpmap ? (char *)videortpmap->value : NULL;
+        janus_config_item *videofmtp = janus_config_get(config, config_general, janus_config_type_item, "videofmtp");
+        vfmtp = videofmtp ? (char *)videofmtp->value : NULL;
     }
 
     sessions = g_hash_table_new_full(NULL, NULL, NULL, (GDestroyNotify)tms_rtprx_session_destroy);

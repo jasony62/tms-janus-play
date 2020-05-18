@@ -2,11 +2,12 @@
 
 echo "启动 Janus server"
 
-echo "修改Jansu配置文件"
+echo "设置janus.plugin.tms.rtprx.jcfg"
+envsubst '$rtp_port_range $audiopt $audiortpmap $videopt $videortpmap' < /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg.template > /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg
+
+echo "修改Janus配置文件"
 sed -i "s/#disable = \"libjanus_rabbitmq.so\"/disable = \"libjanus_rabbitmq.so,libjanus_pfunix.so\"/g" /opt/janus/etc/janus/janus.jcfg
 # sed -i "s/#disable = \"libjanus_voicemail.so,libjanus_recordplay.so\"/disable = \"libjanus_voicemail.so,libjanus_recordplay.so,libjanus_audiobridge.so,libjanus_videoroom.so,libjanus_videocall.so,libjanus_echotest.so,libjanus_nosip.so\"/g" /opt/janus/etc/janus/janus.jcfg
-
-ldconfig -p | grep microhttpd
 
 if [ "$ssl_certificate" != "" -a "$ssl_certificate_key" != "" ]
 then
