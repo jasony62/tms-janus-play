@@ -1,2 +1,3 @@
+.DS_Store
 docker-compose.override.yml
 local.env
