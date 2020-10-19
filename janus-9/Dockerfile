@@ -1,4 +1,4 @@
-FROM centos:centos7
+FROM jrottenberg/ffmpeg:4.2.3-centos7
 
 RUN yum -y update && yum -y install epel-release && \
     yum -y install gcc automake autoconf libtool make git wget \
@@ -36,15 +36,25 @@ ENV PKG_CONFIG_PATH /usr/lib/pkgconfig
 # 插件Streaming播放外部媒体
 RUN yum -y install gstreamer*
 
-# 安装janus(v0.9.1)
-# 下载
-RUN cd /root && git clone https://github.com/meetecho/janus-gateway.git
-# 编译和安装
-RUN cd /root/janus-gateway && \
-    git checkout v0.9.1 && \
+# 安装Janus
+WORKDIR /usr/src/janus-gateway
+
+COPY ./janus-gateway-0.9.1 ./
+
+RUN cd /usr/src/janus-gateway && \
     ./autogen.sh && \
     ./configure --prefix=/opt/janus && \
     make && make install && make configs 
+
+# 安装janus(v0.9.1)
+# 下载
+# RUN cd /root && git clone https://github.com/meetecho/janus-gateway.git
+# 编译和安装
+# RUN cd /root/janus-gateway && \
+#     git checkout v0.9.1 && \
+#     ./autogen.sh && \
+#     ./configure --prefix=/opt/janus && \
+#     make && make install && make configs 
 # RUN cd /root/janus-gateway && \
 #     git checkout v0.8.2 && \
 #     ./autogen.sh && \
@@ -59,15 +69,17 @@ RUN cd /root/janus-gateway && \
 #     ./configure --prefix=/opt/janus && \
 #     make && make install && make configs 
 
-# 安装Rtprx插件
-ADD plugins /root/janus/plugins
-RUN cd /root/janus/plugins/rtprx && \
-    ./bootstrap && \
-    ./configure --prefix=/opt/janus && \ 
-    make && make install 
+# 安装mp4播放插件
 
-RUN cd /root/janus/plugins/rtprx && \
-    cp janus.plugin.tms.rtprx.jcfg.template /opt/janus/etc/janus/
+# 安装Rtprx插件
+# ADD plugins /root/janus/plugins
+# RUN cd /root/janus/plugins/rtprx && \
+#     ./bootstrap && \
+#     ./configure --prefix=/opt/janus && \ 
+#     make && make install 
+
+# RUN cd /root/janus/plugins/rtprx && \
+#     cp janus.plugin.tms.rtprx.jcfg.template /opt/janus/etc/janus/
 
 EXPOSE 8088 8089
 
@@ -80,4 +92,4 @@ ENV rtp_port_range="20000-40000" audiopt=111 audiortpmap="opus/48000/2" videopt=
 ADD start_janus.sh /root/start_janus.sh
 RUN chmod +x /root/start_janus.sh
 
-CMD ["./root/start_janus.sh"]
+ENTRYPOINT ["/root/start_janus.sh"]

@@ -8,6 +8,30 @@
 
 播放端（ue_player）将`janus`服务中用于接收`ffmpeg`服务发送的 RTP 包的地址和端口传递给`ffmpeg`服务。
 
+## 制作镜像
+
+下载：https://github.com/meetecho/janus-gateway/archive/v0.9.1.tar.gz
+
+将文件放到`janus-9`目录下，执行命令`tar -zxf v0.9.1.tar.gz`，解压后的目录为`janus-gateway-0.9.1`。
+
+> docker-compose -f docker-compose.9.yml build
+
+> docker-compose -f docker-compose.9.yml -f docker-compose.override.yml up
+
+> docker exec -it tms-janus_0.9.1 bash
+
+自定义插件复制到/usr/src/janus-plugins
+
+编译插件
+
+./bootstrap && \
+./configure --prefix=/opt/janus && \
+make && make install
+
+编译安装后要重启 janus
+
+> docker-compose -f docker-compose.9.yml restart janus
+
 ## ssl
 
 ## coturn
@@ -151,4 +175,10 @@ debug_level=4
 
 > docker-compose up --build
 
-在浏览器中打开：https://yourdomain:8080/player
+## player
+
+在浏览器中打开：https://yourdomain:8443/player
+
+## demo
+
+在浏览器中打开：https://yourdomain:8444

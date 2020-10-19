@@ -2,8 +2,8 @@
 
 echo "启动 Janus server"
 
-echo "设置janus.plugin.tms.rtprx.jcfg"
-envsubst '$rtp_port_range $audiopt $audiortpmap $videopt $videortpmap' < /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg.template > /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg
+# echo "设置janus.plugin.tms.rtprx.jcfg"
+# envsubst '$rtp_port_range $audiopt $audiortpmap $videopt $videortpmap' < /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg.template > /opt/janus/etc/janus/janus.plugin.tms.rtprx.jcfg
 
 echo "修改Janus配置文件"
 sed -i "s/#disable = \"libjanus_rabbitmq.so\"/disable = \"libjanus_rabbitmq.so,libjanus_pfunix.so\"/g" /opt/janus/etc/janus/janus.jcfg

@@ -7,15 +7,18 @@ services:
     # network_mode: 'host'
 
   janus:
-    build: ./janus
-    image: tms-janus/janus-centos
-    container_name: tms-janus-centos
+    build:
+      context: ./janus-9
+      dockerfile: Dockerfile
+    image: tms/janus:0.9.1
+    container_name: tms-janus_0.9.1
     # network_mode: 'host'
     # ports:
     #   - '8088:8088'
     #   - '10000-10099:10000-10099/udp'
-    # volumes:
-    #   - /usr/local/etc/ssl:/usr/local/etc/ssl
+    volumes:
+      #   - /usr/local/etc/ssl:/usr/local/etc/ssl
+      - ./tms-plugins:/usr/src/janus-plugins
     env_file:
       - ./sample.env
     depends_on:
