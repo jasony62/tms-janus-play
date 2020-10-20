@@ -1,3 +1,5 @@
+#include <jansson.h>
+
 #include <plugins/plugin.h>
 
 #define TMS_JANUS_PLUGIN_MP4_VERSION 1
@@ -46,6 +48,17 @@ static janus_plugin janus_plugin_tms_mp4 =
             .hangup_media = janus_plugin_hangup_media_tms_mp4,
 
             .handle_message = janus_plugin_handle_message_tms_mp4, );
+
+static janus_callbacks *gateway = NULL;
+
+/**
+ * 插件会话 
+ */
+typedef struct tms_mp4_session
+{
+  janus_plugin_session *handle;
+  janus_refcount ref;
+} tms_mp4_session;
 
 /**************************************
  *  插件基本信息描述 
@@ -100,6 +113,9 @@ janus_plugin *create(void)
 /* 初始化插件 */
 int janus_plugin_init_tms_mp4(janus_callbacks *callback, const char *config_path)
 {
+  /* This is the callback we'll need to invoke to contact the Janus core */
+  gateway = callback;
+
   return 0;
 }
 
@@ -109,10 +125,28 @@ void janus_plugin_destroy_tms_mp4(void) {}
 /**************************************
  *  会话生命周期方法 
  **************************************/
+/* 创建插件 */
+void janus_plugin_create_session_tms_mp4(janus_plugin_session *handle, int *error)
+{
+  JANUS_LOG(LOG_VERB, "插件[%s] 创建会话 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
 
-void janus_plugin_create_session_tms_mp4(janus_plugin_session *handle, int *error) {}
-json_t *janus_plugin_query_session_tms_mp4(janus_plugin_session *handle) { return NULL; }
-void janus_plugin_destroy_session_tms_mp4(janus_plugin_session *handle, int *error) {}
+  /* 创建本地会话，记录状态信息 */
+  tms_mp4_session *session = g_malloc0(sizeof(tms_mp4_session));
+  session->handle = handle;
+  handle->plugin_handle = session;
+}
+/* 必须有，怎么用？返回json对象，记录和session关联的业务信息 */
+json_t *janus_plugin_query_session_tms_mp4(janus_plugin_session *handle)
+{
+  JANUS_LOG(LOG_VERB, "插件[%s] 查找会话 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+
+  return NULL;
+}
+/* 销毁插件 */
+void janus_plugin_destroy_session_tms_mp4(janus_plugin_session *handle, int *error)
+{
+  JANUS_LOG(LOG_VERB, "插件[%s] 销毁会话 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+}
 
 /**************************************
  *  媒体生命周期方法 
@@ -125,4 +159,23 @@ void janus_plugin_hangup_media_tms_mp4(janus_plugin_session *handle) {}
  *  消息处理 
  **************************************/
 
-struct janus_plugin_result *janus_plugin_handle_message_tms_mp4(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep) { return NULL; }
+struct janus_plugin_result *janus_plugin_handle_message_tms_mp4(janus_plugin_session *handle, char *transaction, json_t *message, json_t *jsep)
+{
+  json_t *root = message;
+  json_t *response = NULL;
+
+  json_t *request = json_object_get(root, "request");
+  const char *request_text = json_string_value(request);
+
+  JANUS_LOG(LOG_VERB, "插件[%s] 收到客户端请求[%s][%s]\n", TMS_JANUS_PLUGIN_MP4_NAME, request_text, transaction);
+
+  if (!strcasecmp(request_text, "ping"))
+  {
+    json_t *response = json_object();
+    json_object_set_new(response, "msg", json_string("pong"));
+
+    return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
+  }
+
+  return janus_plugin_result_new(JANUS_PLUGIN_OK_WAIT, NULL, NULL);
+}

@@ -10,15 +10,21 @@
 
 ## 制作镜像
 
-下载：https://github.com/meetecho/janus-gateway/archive/v0.9.1.tar.gz
-
-将文件放到`janus-9`目录下，执行命令`tar -zxf v0.9.1.tar.gz`，解压后的目录为`janus-gateway-0.9.1`。
+下载`https://github.com/meetecho/janus-gateway/archive/v0.9.1.tar.gz`文件到`janus-9`目录下，执行命令`tar -zxf v0.9.1.tar.gz`，解压后的目录为`janus-gateway-0.9.1`。
 
 > docker-compose -f docker-compose.9.yml build
 
 > docker-compose -f docker-compose.9.yml -f docker-compose.override.yml up
 
 > docker exec -it tms-janus_0.9.1 bash
+
+> docker-compose -f docker-compose.9.yml down
+
+> docker-compose -f docker-compose.9.yml -f docker-compose.override.yml up janus
+
+> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/mp4; make"
+
+> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/mp4; make install"
 
 自定义插件复制到/usr/src/janus-plugins
 
