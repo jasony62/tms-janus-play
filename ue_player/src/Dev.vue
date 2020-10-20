@@ -5,18 +5,19 @@
     </div>
     <div>
       <button @click="createSession">创建会话</button>
-    </div>
-    <div>
       <button @click="attach">关联插件</button>
-    </div>
-    <div>
       <button @click="sendMessage">发送消息</button>
     </div>
     <div>
-      <button @click="detach">断开插件</button>
+      <button @click="createWebrtc">建立Webrtc</button>
+      <button @click="hangupWebrtc">断开Webrtc</button>
     </div>
     <div>
+      <button @click="detach">断开插件</button>
       <button @click="destroySession">销毁会话</button>
+    </div>
+    <div>
+      <video id="remotevideo" width="320" height="240" autoplay playsinline @playing="playing" />
     </div>
   </div>
 </template>
@@ -39,6 +40,17 @@ export default {
   },
   computed: {},
   methods: {
+    PluginOnRemoteStream(stream) {
+      GlobalJanus.debug(' ::: Got a remote stream :::')
+      GlobalJanus.debug(stream)
+      GlobalJanus.attachMediaStream(
+        document.querySelector('#remotevideo'),
+        stream
+      )
+    },
+    playing() {
+      GlobalJanus.debug(' ::: Remote stream is playing :::')
+    },
     createSession() {
       return new Promise((resolve, reject) => {
         this.janus = new GlobalJanus({
@@ -82,7 +94,7 @@ export default {
           oncleanup: () => (this.webrtcUp = false),
           error: () => {},
           onmessage: this.onPluginMessage,
-          // onremotestream: this.PluginOnRemoteStream,
+          onremotestream: this.PluginOnRemoteStream,
         })
       })
     },
@@ -111,9 +123,46 @@ export default {
         })
       })
     },
+    createWebrtc() {
+      if (!this.mp4Handle) return Promise.reject()
+      // 获得服务端sdp
+      return new Promise((resolve) => {
+        const body = { request: 'request.offer' }
+        this.mp4Handle.send({
+          message: body,
+          success: () => {
+            resolve()
+          },
+        })
+      })
+    },
+    hangupWebrtc() {
+      if (this.mp4Handle) this.mp4Handle.hangup()
+    },
     onPluginMessage(msg, remoteJsep) {
       GlobalJanus.debug(' ::: Got a message :::')
       GlobalJanus.debug(msg)
+      if (remoteJsep !== undefined && remoteJsep !== null) {
+        GlobalJanus.debug('Handling Remote SDP as well...')
+        GlobalJanus.debug(remoteJsep)
+        // Offer from the plugin, let's answer
+        this.mp4Handle.createAnswer({
+          jsep: remoteJsep,
+          // We want recvonly audio/video and, if negotiated, datachannels
+          media: { audioSend: false, videoSend: false, data: true },
+          success: (localJsep) => {
+            GlobalJanus.debug('Got Local SDP!')
+            GlobalJanus.debug(localJsep)
+            this.mp4Handle.send({
+              message: { request: 'push.answer' },
+              jsep: localJsep,
+            })
+          },
+          error: (error) => {
+            GlobalJanus.error('WebRTC error:', error)
+          },
+        })
+      }
     },
   },
   mounted() {

@@ -21,8 +21,6 @@ services:
       - ./tms-plugins:/usr/src/janus-plugins
     env_file:
       - ./sample.env
-    depends_on:
-      - coturn
 
   ffmpeg:
     build: ./ffmpeg
