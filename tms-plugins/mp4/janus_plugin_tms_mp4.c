@@ -49,7 +49,7 @@ static janus_plugin janus_plugin_tms_mp4 =
 
             .handle_message = janus_plugin_handle_message_tms_mp4, );
 
-/* */
+/* 生成jsep offer sdp */
 static void tms_mp4_create_offer_sdp(char **sdp, gboolean doaudio, gboolean dovideo)
 {
   gint64 sdp_version = 1;
@@ -104,6 +104,91 @@ static volatile gint initialized = 0;
 /* 调用janus基础功能 */
 static janus_callbacks *gateway = NULL;
 
+/*************************************************
+ * 插件ffmpeg媒体播放
+ * ffmpeg运行在独立的线程中，获取数据状态时要加锁
+ *************************************************/
+typedef struct tms_mp4_ffmpeg
+{
+  janus_plugin_session *handle;
+  janus_refcount ref;
+  janus_mutex mutex;
+  volatile gint webrtcup;
+  volatile gint playing;
+  volatile gint destroyed;
+} tms_mp4_ffmpeg;
+/* 发送ffmpeg播放状态 */
+static void tms_mp4_ffmpeg_send_event(tms_mp4_ffmpeg *ffmpeg, char *msg)
+{
+  janus_plugin_session *handle = ffmpeg->handle;
+  json_t *event = json_object();
+  json_object_set_new(event, "playmp4", json_string(msg));
+  int ret = gateway->push_event(handle, &janus_plugin_tms_mp4, NULL, event, NULL);
+  if (ret < 0)
+    JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+}
+/* 异步ffmpeg媒体播放 */
+static void *tms_mp4_async_ffmpeg_thread(void *data)
+{
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 启动异步媒体处理线程\n");
+
+  tms_mp4_ffmpeg *ffmpeg = (tms_mp4_ffmpeg *)data;
+
+  while (!g_atomic_int_get(&ffmpeg->destroyed) && g_atomic_int_get(&ffmpeg->webrtcup))
+  {
+    janus_mutex_lock(&ffmpeg->mutex);
+    if (g_atomic_int_get(&ffmpeg->playing))
+    {
+      tms_mp4_ffmpeg_send_event(ffmpeg, "playing.ffmpeg");
+    }
+    else
+    {
+      tms_mp4_ffmpeg_send_event(ffmpeg, "paused.ffmpeg");
+    }
+    janus_mutex_unlock(&ffmpeg->mutex);
+    sleep(1);
+  }
+
+  /* 通知线程已经结束 */
+  janus_mutex_lock(&ffmpeg->mutex);
+  if (!g_atomic_int_get(&ffmpeg->destroyed))
+  {
+    tms_mp4_ffmpeg_send_event(ffmpeg, "exit.ffmpeg");
+  }
+  janus_mutex_unlock(&ffmpeg->mutex);
+
+  // 引用次数减1
+  janus_refcount_decrease(&ffmpeg->ref);
+
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束异步媒体处理线程\n");
+}
+/* 销毁ffmpeg实例。可能播放线程仍然在执行，修改状态，需要加锁。 */
+static void tms_mp4_ffmpeg_destroy(tms_mp4_ffmpeg *ffmpeg)
+{
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 开始销毁ffmpeg\n");
+
+  janus_mutex_lock(&ffmpeg->mutex);
+
+  g_atomic_int_set(&ffmpeg->destroyed, 1);
+  g_atomic_pointer_set(&ffmpeg->handle, NULL);
+
+  janus_mutex_unlock(&ffmpeg->mutex);
+
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 完成销毁ffmpeg\n");
+}
+/**
+ * 释放ffmpeg实例，通过引用计数调用
+ */
+static void tms_mp4_ffmpeg_ref_free(const janus_refcount *ffmpeg_ref)
+{
+  tms_mp4_ffmpeg *ffmpeg = janus_refcount_containerof(ffmpeg_ref, tms_mp4_ffmpeg, ref);
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 开始释放ffmpeg %p\n", ffmpeg);
+
+  g_free(ffmpeg);
+
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 完成释放ffmpeg\n");
+}
+
 /***********************************
  * 插件会话 
  ***********************************/
@@ -111,12 +196,31 @@ typedef struct tms_mp4_session
 {
   janus_plugin_session *handle;
   janus_refcount ref;
+  tms_mp4_ffmpeg *ffmpeg;
+  volatile gint webrtcup;
 } tms_mp4_session;
+/**
+ * 释放会话
+ */
+static void tms_mp4_session_free(tms_mp4_session *session)
+{
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 开始释放会话\n");
 
+  /* 去掉对其它资源的引用 */
+  if (session->ffmpeg)
+  {
+    tms_mp4_ffmpeg_destroy(session->ffmpeg);
+    janus_refcount_decrease(&session->ffmpeg->ref);
+    session->ffmpeg = NULL;
+  }
+  // 为什么不用释放？janus的session会进行释放？
+  // g_free(session);
+
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 完成释放会话\n");
+}
 /*************************************
  * 插件消息
  *************************************/
-
 typedef struct tms_mp4_message
 {
   janus_plugin_session *handle;
@@ -170,11 +274,13 @@ static void *tms_mp4_async_message_thread(void *data)
     msg = g_async_queue_pop(messages);
     if (msg == &exit_message)
       break;
-    if (msg->handle == NULL)
+    if (msg->handle == NULL || msg->handle->plugin_handle == NULL)
     {
       tms_mp4_message_free(msg);
       continue;
     }
+
+    tms_mp4_session *session = (tms_mp4_session *)msg->handle->plugin_handle;
 
     root = msg->message;
     json_t *request = json_object_get(root, "request");
@@ -182,6 +288,7 @@ static void *tms_mp4_async_message_thread(void *data)
 
     if (!strcasecmp(request_text, "request.offer"))
     {
+      /* 要求服务端创建Offer，发起Webrtc连接 */
       json_t *event = json_object();
       json_object_set_new(event, "playmp4", json_string("create.offer"));
 
@@ -191,19 +298,72 @@ static void *tms_mp4_async_message_thread(void *data)
       json_t *jsep = json_pack("{ssss}", "type", "offer", "sdp", sdp);
 
       int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, jsep);
-      JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+      if (ret < 0)
+        JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
 
       g_free(sdp);
       json_decref(event);
     }
+    else if (g_atomic_int_get(&session->webrtcup))
+    {
+      /* Webrtc连接已经建立，可以控制媒体播放 */
+      if (!strcasecmp(request_text, "play.file"))
+      {
+        /* 要求播放指定的文件 */
+        tms_mp4_ffmpeg *ffmpeg = g_malloc0(sizeof(tms_mp4_ffmpeg));
+        ffmpeg->handle = msg->handle;
+        session->ffmpeg = ffmpeg;
+        janus_refcount_increase(&ffmpeg->ref); // 会话使用，引用加1
 
+        janus_refcount_init(&ffmpeg->ref, tms_mp4_ffmpeg_ref_free);
+        g_atomic_int_set(&ffmpeg->webrtcup, 1);
+        g_atomic_int_set(&ffmpeg->playing, 1);
+        g_atomic_int_set(&ffmpeg->destroyed, 0);
+        janus_mutex_init(&ffmpeg->mutex);
+
+        /* 启用ffmpeg媒体播放线程 */
+        GError *error = NULL;
+        janus_refcount_increase(&ffmpeg->ref); // 线程使用，引用加1
+        g_thread_try_new("PlayMp4 ffmpeg thread", tms_mp4_async_ffmpeg_thread, ffmpeg, &error);
+        if (error != NULL)
+        {
+          JANUS_LOG(LOG_ERR, "启动ffmpeg媒体播放线程发生错误：%d (%s)\n", error->code, error->message ? error->message : "??");
+          janus_refcount_decrease(&ffmpeg->ref);
+        }
+        else
+        {
+          /* 通知启用了媒体播放线程 */
+          json_t *event = json_object();
+          json_object_set_new(event, "playmp4", json_string("launch.ffmpeg"));
+          int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, NULL);
+          if (ret < 0)
+            JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+        }
+      }
+      else if (!strcasecmp(request_text, "pause.file"))
+      {
+        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
+        g_atomic_int_set(&ffmpeg->playing, 0);
+      }
+      else if (!strcasecmp(request_text, "resume.file"))
+      {
+        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
+        g_atomic_int_set(&ffmpeg->playing, 1);
+      }
+      else if (!strcasecmp(request_text, "stop.file"))
+      {
+        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
+        g_atomic_int_set(&ffmpeg->destroyed, 1);
+      }
+    }
     tms_mp4_message_free(msg);
   }
 
-  JANUS_LOG(LOG_VERB, "[PlayMp4] 离开插件消息处理线程\n");
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束插件消息处理线程\n");
 }
+
 /**************************************
- *  插件基本信息描述 
+ * 插件基本信息描述 
  **************************************/
 
 int janus_plugin_get_api_compatibility_tms_mp4(void)
@@ -301,37 +461,61 @@ void janus_plugin_destroy_tms_mp4(void)
 /* 创建插件 */
 void janus_plugin_create_session_tms_mp4(janus_plugin_session *handle, int *error)
 {
-  JANUS_LOG(LOG_VERB, "插件[PlayMp4] 创建会话 %p\n", handle);
+  JANUS_LOG(LOG_VERB, "[PlayMp4][%p] 创建会话\n", handle);
 
   /* 创建本地会话，记录状态信息 */
   tms_mp4_session *session = g_malloc0(sizeof(tms_mp4_session));
   session->handle = handle;
+  session->webrtcup = 0;
   handle->plugin_handle = session;
 }
 /* 必须有，怎么用？返回json对象，记录和session关联的业务信息 */
 json_t *janus_plugin_query_session_tms_mp4(janus_plugin_session *handle)
 {
-  JANUS_LOG(LOG_VERB, "插件[%s] 查找会话 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+  JANUS_LOG(LOG_VERB, "[%s][%p] 查找会话\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
 
   return NULL;
 }
 /* 销毁插件 */
 void janus_plugin_destroy_session_tms_mp4(janus_plugin_session *handle, int *error)
 {
-  JANUS_LOG(LOG_VERB, "插件[%s] 销毁会话 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+  /* 释放资源 */
+  if (handle->plugin_handle)
+  {
+    tms_mp4_session *session = (tms_mp4_session *)handle->plugin_handle;
+    tms_mp4_session_free(session);
+  }
+
+  JANUS_LOG(LOG_VERB, "[%s][%p] 完成销毁会话\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
 }
 
 /**************************************
  *  媒体生命周期方法 
  **************************************/
-
+/* a callback to notify you the peer PeerConnection is now ready to be used */
 void janus_plugin_setup_media_tms_mp4(janus_plugin_session *handle)
 {
-  JANUS_LOG(LOG_VERB, "插件[%s] 设置媒体 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+  JANUS_LOG(LOG_VERB, "[%s][%p] Webrtc连接已建立\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+
+  if (handle->plugin_handle)
+  {
+    tms_mp4_session *session = (tms_mp4_session *)handle->plugin_handle;
+    g_atomic_int_set(&session->webrtcup, 1);
+  }
 }
 void janus_plugin_hangup_media_tms_mp4(janus_plugin_session *handle)
 {
-  JANUS_LOG(LOG_VERB, "插件[%s] 结束媒体 %p\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+  JANUS_LOG(LOG_VERB, "[%s][%p] Webrtc连接已挂断\n", TMS_JANUS_PLUGIN_MP4_NAME, handle);
+
+  if (handle->plugin_handle)
+  {
+    tms_mp4_session *session = (tms_mp4_session *)handle->plugin_handle;
+    g_atomic_int_set(&session->webrtcup, 0);
+    if (session->ffmpeg)
+    {
+      g_atomic_int_set(&session->ffmpeg->webrtcup, 0);
+    }
+  }
 }
 
 /**************************************
@@ -346,8 +530,9 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_mp4(janus_plugin_ses
   json_t *request = json_object_get(root, "request");
   const char *request_text = json_string_value(request);
 
-  JANUS_LOG(LOG_VERB, "插件[%s] 收到客户端请求[%s][%s]\n", TMS_JANUS_PLUGIN_MP4_NAME, request_text, transaction);
+  JANUS_LOG(LOG_VERB, "[%s][%p] 收到客户端请求[%s][%s]\n", TMS_JANUS_PLUGIN_MP4_NAME, handle, request_text, transaction);
 
+  /* 测试用 */
   if (!strcasecmp(request_text, "ping"))
   {
     json_t *response = json_object();
@@ -355,17 +540,28 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_mp4(janus_plugin_ses
 
     return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
   }
+  /* 如果没有关联session无法处理后续逻辑 */
+  if (!handle->plugin_handle)
+  {
+    return janus_plugin_result_new(JANUS_PLUGIN_ERROR, "未正确建立和插件的绑定，无法能执行指定操作", NULL);
+  }
 
   /* 放入队列异步处理的消息 */
-  if (!strcasecmp(request_text, "request.offer"))
+  if (!strcasecmp(request_text, "request.offer") || NULL != strstr(request_text, ".file"))
   {
+    tms_mp4_session *session = (tms_mp4_session *)handle->plugin_handle;
+    if (NULL != strstr(request_text, ".file") && !session->webrtcup)
+    {
+      return janus_plugin_result_new(JANUS_PLUGIN_ERROR, "Webrtc连接未建立，不能执行指定操作", NULL);
+    }
+
     tms_mp4_message *msg = g_malloc(sizeof(tms_mp4_message));
     msg->handle = handle;
     msg->transaction = transaction;
     msg->message = root;
     msg->jsep = jsep;
 
-    JANUS_LOG(LOG_VERB, "插件[%s] 收到客户端请求[%s][%s]，进入队列等待处理\n", TMS_JANUS_PLUGIN_MP4_NAME, request_text, msg->transaction);
+    JANUS_LOG(LOG_VERB, "[%s][%p] 收到客户端请求[%s][%s]，进入队列等待处理\n", TMS_JANUS_PLUGIN_MP4_NAME, handle, request_text, msg->transaction);
     g_async_queue_push(messages, msg);
   }
 

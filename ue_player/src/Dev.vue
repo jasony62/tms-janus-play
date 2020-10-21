@@ -13,6 +13,12 @@
       <button @click="hangupWebrtc">断开Webrtc</button>
     </div>
     <div>
+      <button @click="playFile">开始播放</button>
+      <button @click="pauseFile">暂停播放</button>
+      <button @click="resumeFile">恢复播放</button>
+      <button @click="stopFile">停止播放</button>
+    </div>
+    <div>
       <button @click="detach">断开插件</button>
       <button @click="destroySession">销毁会话</button>
     </div>
@@ -26,6 +32,7 @@
 // eslint-disable-next-line
 const GlobalJanus = Janus
 
+// let server = `https://192.168.31.100:8089/janus`
 let server = `https://192.168.43.165:8089/janus`
 
 export default {
@@ -138,6 +145,26 @@ export default {
     },
     hangupWebrtc() {
       if (this.mp4Handle) this.mp4Handle.hangup()
+    },
+    playFile() {
+      this.mp4Handle.send({
+        message: { request: 'play.file' },
+      })
+    },
+    pauseFile() {
+      this.mp4Handle.send({
+        message: { request: 'pause.file' },
+      })
+    },
+    resumeFile() {
+      this.mp4Handle.send({
+        message: { request: 'resume.file' },
+      })
+    },
+    stopFile() {
+      this.mp4Handle.send({
+        message: { request: 'stop.file' },
+      })
     },
     onPluginMessage(msg, remoteJsep) {
       GlobalJanus.debug(' ::: Got a message :::')

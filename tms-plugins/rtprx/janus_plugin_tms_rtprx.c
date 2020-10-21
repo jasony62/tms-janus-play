@@ -1880,8 +1880,6 @@ void janus_plugin_destroy_session_tms_rtprx(janus_plugin_session *handle, int *e
   janus_mutex_unlock(&sessions_mutex);
 
   JANUS_LOG(LOG_VERB, "[Janus][Rtprx] 完成销毁会话\n");
-
-  return;
 }
 /* 不知道有什么用？ */
 json_t *janus_plugin_query_session_tms_rtprx(janus_plugin_session *handle)
