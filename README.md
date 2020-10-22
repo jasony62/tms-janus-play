@@ -181,6 +181,10 @@ debug_level=4
 
 > docker-compose up --build
 
+## 样本数据
+
+webm
+
 ## player
 
 在浏览器中打开：https://yourdomain:8443/player

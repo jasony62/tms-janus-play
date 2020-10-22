@@ -21,3 +21,5 @@ tms-plugins/*/Makefile.in
 tms-plugins/*/missing
 
 janus-*/janus-gateway-*/
+
+media/

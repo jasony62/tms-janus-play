@@ -2,6 +2,10 @@
 
 #include <plugins/plugin.h>
 
+#include <libavformat/avformat.h>
+
+#include "tms_ffmpeg_mp4.h"
+
 #define TMS_JANUS_PLUGIN_MP4_VERSION 1
 #define TMS_JANUS_PLUGIN_MP4_VERSION_STRING "0.0.1"
 #define TMS_JANUS_PLUGIN_MP4_DESCRIPTION "play mp4 file"
@@ -134,20 +138,22 @@ static void *tms_mp4_async_ffmpeg_thread(void *data)
 
   tms_mp4_ffmpeg *ffmpeg = (tms_mp4_ffmpeg *)data;
 
-  while (!g_atomic_int_get(&ffmpeg->destroyed) && g_atomic_int_get(&ffmpeg->webrtcup))
-  {
-    janus_mutex_lock(&ffmpeg->mutex);
-    if (g_atomic_int_get(&ffmpeg->playing))
-    {
-      tms_mp4_ffmpeg_send_event(ffmpeg, "playing.ffmpeg");
-    }
-    else
-    {
-      tms_mp4_ffmpeg_send_event(ffmpeg, "paused.ffmpeg");
-    }
-    janus_mutex_unlock(&ffmpeg->mutex);
-    sleep(1);
-  }
+  tms_ffmpeg_mp4_main("/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4");
+
+  // while (!g_atomic_int_get(&ffmpeg->destroyed) && g_atomic_int_get(&ffmpeg->webrtcup))
+  // {
+  //   janus_mutex_lock(&ffmpeg->mutex);
+  //   if (g_atomic_int_get(&ffmpeg->playing))
+  //   {
+  //     tms_mp4_ffmpeg_send_event(ffmpeg, "playing.ffmpeg");
+  //   }
+  //   else
+  //   {
+  //     tms_mp4_ffmpeg_send_event(ffmpeg, "paused.ffmpeg");
+  //   }
+  //   janus_mutex_unlock(&ffmpeg->mutex);
+  //   sleep(1);
+  // }
 
   /* 通知线程已经结束 */
   janus_mutex_lock(&ffmpeg->mutex);
