@@ -1,8 +1,12 @@
 #define ALAW_BIT_RATE 64000   // alaw比特率
 #define ALAW_SAMPLE_RATE 8000 // alaw采样率
+#define ALAW_PAYLOAD_TYPE 8
+#define RTP_PCMA_TIME_BASE 8000 // RTP中pcma流的时间
 
 #ifndef TMS_PCMA_H
 #define TMS_PCMA_H
+
+#include <rtp.h>
 
 #include "tms_ffmpeg_mp4.h"
 #include "tms_ffmpeg_stream.h"
@@ -17,7 +21,6 @@ typedef struct PCMAEnc
   AVFrame *frame;
   AVPacket packet;
 } PCMAEnc;
-
 /**
  * 重采样 
  */
@@ -28,11 +31,31 @@ typedef struct Resampler
   int linesize;       // 声道平面尺寸
   uint8_t **data;     // 重采样缓冲区
 } Resampler;
+/**
+ * rtp包发送 
+ */
+typedef struct TmsAudioRtpContext
+{
+  uint32_t timestamp;
+  uint32_t base_timestamp;
+  uint32_t cur_timestamp;
+} TmsAudioRtpContext;
 
 int tms_init_pcma_encoder(PCMAEnc *encoder);
 int tms_init_audio_resampler(AVCodecContext *input_codec_context,
                              AVCodecContext *output_codec_context,
                              Resampler *resampler);
+int tms_init_audio_rtp_context(TmsAudioRtpContext *audio_rtp_ctx, uint32_t base_timestamp);
+
+/* 初始化音频rtp发送上下文 */
+int tms_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timestamp)
+{
+  rtp_ctx->base_timestamp = base_timestamp;
+  rtp_ctx->cur_timestamp = base_timestamp;
+  rtp_ctx->timestamp = 0;
+
+  return 0;
+}
 
 /* 初始化音频编码器（转换为pcma格式） */
 int tms_init_pcma_encoder(PCMAEnc *encoder)
@@ -237,8 +260,50 @@ static void tms_add_audio_frame_send_delay(AVFrame *frame, TmsPlayContext *play)
     usleep(pts - elapse);
   }
 }
+/**
+ * 发送RTP包
+ * 
+ * 应该处理采样数超过限制进行分包的情况 
+ */
+static int tms_rtp_send_audio(PCMAEnc *encoder, TmsPlayContext *play, TmsAudioRtpContext *rtp_ctx)
+{
+  janus_callbacks *gateway = play->gateway;
+  janus_plugin_session *handle = play->handle;
+
+  uint8_t *output_data = encoder->packet.data;
+  int nb_samples = encoder->nb_samples; // 每个采样1个字节
+  rtp_ctx->timestamp = rtp_ctx->cur_timestamp;
+  int16_t seq = play->nb_before_audio_rtps + play->nb_audio_rtps + 1;
+  int8_t audio_pt = ALAW_PAYLOAD_TYPE;
+
+  char *buffer = g_malloc0(1500); // 1个包最大的采样数是多少？
+
+  /* 设置RTP头 */
+  janus_rtp_header *header = (janus_rtp_header *)buffer;
+  header->version = 2;
+  header->markerbit = 1;
+  header->type = audio_pt;
+  header->seq_number = htons(seq);
+  header->timestamp = htonl(rtp_ctx->timestamp);
+  header->ssrc = htonl(1); /* The gateway will fix this anyway */
+
+  memcpy(buffer + RTP_HEADER_SIZE, output_data, nb_samples);
+
+  uint16_t length = RTP_HEADER_SIZE + nb_samples; // 每个采样1字节，所以：头长度+采样长度=包长度
+
+  janus_plugin_rtp janus_rtp = {.video = FALSE, .buffer = (char *)buffer, .length = length};
+  gateway->relay_rtp(handle, &janus_rtp);
+
+  play->nb_audio_rtps++;
+
+  g_free(buffer);
+
+  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%d\n", play->nb_audio_rtps, seq, rtp_ctx->timestamp);
+
+  return 0;
+}
 /* 处理音频媒体包 */
-int tms_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler *resampler, PCMAEnc *pcma_enc, AVPacket *pkt, AVFrame *frame)
+int tms_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler *resampler, PCMAEnc *pcma_enc, AVPacket *pkt, AVFrame *frame, TmsAudioRtpContext *rtp_ctx)
 {
   int ret = 0;
 
@@ -312,14 +377,19 @@ int tms_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler
         JANUS_LOG(LOG_VERB, "Error encoding audio frame\n");
         return -1;
       }
-      /* 计算时间戳，单位毫秒（milliseconds） a*b/c */
-      // audio_rtp_ctx->cur_timestamp += av_rescale(pcma_enc->nb_samples, AV_TIME_BASE, RTP_PCMA_TIME_BASE) / 1000;
-      // if (!player->first_rtcp_auido)
+      /* 计算时间戳 */
+      if (play->pause_duration_us > 0)
+      {
+        rtp_ctx->cur_timestamp += play->pause_duration_us / 1000 * 8; // 每毫秒8个采样
+      }
+      rtp_ctx->cur_timestamp += pcma_enc->nb_samples;
+
+      // if (!play->first_rtcp_auido)
       // {
-      //   tms_audio_rtcp_first_sr(player, audio_rtp_ctx);
+      //   tms_audio_rtcp_first_sr(play, rtp_ctx);
       // }
       /* 通过rtp发送音频 */
-      // tms_rtp_send_audio(audio_rtp_ctx, pcma_enc, player);
+      tms_rtp_send_audio(pcma_enc, play, rtp_ctx);
     }
     av_packet_unref(&pcma_enc->packet);
     av_frame_free(&pcma_enc->frame);

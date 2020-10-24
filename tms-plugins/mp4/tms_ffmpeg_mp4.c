@@ -24,7 +24,7 @@
  * 支持播放控制，暂停，恢复，停止 
  ***********************************/
 /* 初始化播放器上下文对象 */
-static int tms_init_play_context(TmsPlayContext *play)
+static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp4_ffmpeg *ffmpeg, TmsPlayContext *play)
 {
   play->start_time_us = av_gettime_relative(); // 单位是微秒
   play->end_time_us = 0;
@@ -34,6 +34,10 @@ static int tms_init_play_context(TmsPlayContext *play)
   play->nb_audio_packets = 0;
   play->nb_audio_frames = 0;
   play->nb_pcma_frames = 0;
+  play->nb_audio_rtps = 0;
+  play->nb_before_audio_rtps = ffmpeg->nb_audio_rtps;
+  play->gateway = gateway;
+  play->handle = handle;
 
   return 0;
 }
@@ -107,7 +111,7 @@ static int tms_open_file(char *filename, AVFormatContext **ictx, AVBSFContext **
 /*************************************
  * 执行入口 
  *************************************/
-int tms_ffmpeg_mp4_main(char *filename)
+int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp4_ffmpeg *ffmpeg, char *filename)
 {
   int ret = 0;
 
@@ -127,10 +131,14 @@ int tms_ffmpeg_mp4_main(char *filename)
 
   /* 初始化播放状态 */
   TmsPlayContext play;
-  if ((ret = tms_init_play_context(&play)) < 0)
+  if ((ret = tms_init_play_context(gateway, handle, ffmpeg, &play)) < 0)
   {
     goto clean;
   }
+
+  /* 初始化音视频流rtp上下文 */
+  TmsAudioRtpContext audio_rtp_ctx;
+  tms_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
 
   /* 解析文件开始播放 */
   AVPacket *pkt = av_packet_alloc(); // ffmpeg媒体包
@@ -138,6 +146,23 @@ int tms_ffmpeg_mp4_main(char *filename)
 
   while (1)
   {
+    /**
+     * 判断是否停止播放
+     */
+    if (g_atomic_int_get(&ffmpeg->playing) == 0)
+    {
+      play.end_time_us = av_gettime_relative();
+      goto end;
+    }
+    /**
+     * 判断是否暂停播放
+     */
+    if (g_atomic_int_get(&ffmpeg->playing) == 2)
+    {
+      usleep(100000);                   // 暂停100毫秒
+      play.pause_duration_us += 100000; // 记录累计暂停时间
+      continue;
+    }
     /**
      * 从文件中读取编码数据包
      */
@@ -167,7 +192,7 @@ int tms_ffmpeg_mp4_main(char *filename)
     }
     else if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
     {
-      if ((ret = tms_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame)) < 0)
+      if ((ret = tms_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame, &audio_rtp_ctx)) < 0)
       {
         av_packet_unref(pkt);
         goto clean;
@@ -178,8 +203,9 @@ int tms_ffmpeg_mp4_main(char *filename)
   }
 
 end:
+  ffmpeg->nb_audio_rtps += play.nb_audio_rtps;
   /* Log end */
-  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒\n", filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us);
+  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
 
 clean:
   if (nb_streams > 0)

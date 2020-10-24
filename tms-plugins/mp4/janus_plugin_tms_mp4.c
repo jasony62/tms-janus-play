@@ -58,10 +58,10 @@ static void tms_mp4_create_offer_sdp(char **sdp, gboolean doaudio, gboolean dovi
 {
   gint64 sdp_version = 1;
   gint64 sdp_sessid = janus_get_real_time();
-  uint8_t aport = 1, acodec = 111;
-  char *artpmap = "opus/48000/2";
+  uint8_t aport = 1, acodec = 8;
+  char *artpmap = "PCMA/8000";
   uint8_t vport = 1, vcodec = 96;
-  char *vrtpmap = "VP8/90000";
+  char *vrtpmap = "H264/90000";
 
   char sdptemp[2048];
   memset(sdptemp, 0, 2048);
@@ -75,12 +75,13 @@ static void tms_mp4_create_offer_sdp(char **sdp, gboolean doaudio, gboolean dovi
   /* Add audio line */
   if (doaudio)
   {
-    g_snprintf(buffer, 512, "m=audio %d RTP/SAVPF %d\r\n"
+    g_snprintf(buffer, 512, "m=audio %d RTP/AVP %d\r\n"
                             "c=IN IP4 1.1.1.1\r\n",
                aport, acodec);
     g_strlcat(sdptemp, buffer, 2048);
-    g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", acodec, artpmap);
-    g_strlcat(sdptemp, buffer, 2048);
+    //g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", acodec, artpmap);
+    //g_strlcat(sdptemp, buffer, 2048);
+    g_strlcat(sdptemp, "b=AS:64\r\n", 2048);
     g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
   }
   /* Add video line */
@@ -92,12 +93,12 @@ static void tms_mp4_create_offer_sdp(char **sdp, gboolean doaudio, gboolean dovi
     g_strlcat(sdptemp, buffer, 2048);
     g_snprintf(buffer, 512, "a=rtpmap:%d %s\r\n", vcodec, vrtpmap);
     g_strlcat(sdptemp, buffer, 2048);
-    g_snprintf(buffer, 512, "a=rtcp-fb:%d nack\r\n", vcodec);
-    g_strlcat(sdptemp, buffer, 2048);
-    g_snprintf(buffer, 512, "a=rtcp-fb:%d nack pli\r\n", vcodec);
-    g_strlcat(sdptemp, buffer, 2048);
-    g_snprintf(buffer, 512, "a=rtcp-fb:%d goog-remb\r\n", vcodec);
-    g_strlcat(sdptemp, buffer, 2048);
+    // g_snprintf(buffer, 512, "a=rtcp-fb:%d nack\r\n", vcodec);
+    // g_strlcat(sdptemp, buffer, 2048);
+    // g_snprintf(buffer, 512, "a=rtcp-fb:%d nack pli\r\n", vcodec);
+    // g_strlcat(sdptemp, buffer, 2048);
+    // g_snprintf(buffer, 512, "a=rtcp-fb:%d goog-remb\r\n", vcodec);
+    // g_strlcat(sdptemp, buffer, 2048);
     g_strlcat(sdptemp, "a=sendonly\r\n", 2048);
   }
 
@@ -112,15 +113,6 @@ static janus_callbacks *gateway = NULL;
  * 插件ffmpeg媒体播放
  * ffmpeg运行在独立的线程中，获取数据状态时要加锁
  *************************************************/
-typedef struct tms_mp4_ffmpeg
-{
-  janus_plugin_session *handle;
-  janus_refcount ref;
-  janus_mutex mutex;
-  volatile gint webrtcup;
-  volatile gint playing;
-  volatile gint destroyed;
-} tms_mp4_ffmpeg;
 /* 发送ffmpeg播放状态 */
 static void tms_mp4_ffmpeg_send_event(tms_mp4_ffmpeg *ffmpeg, char *msg)
 {
@@ -137,23 +129,8 @@ static void *tms_mp4_async_ffmpeg_thread(void *data)
   JANUS_LOG(LOG_VERB, "[PlayMp4] 启动异步媒体处理线程\n");
 
   tms_mp4_ffmpeg *ffmpeg = (tms_mp4_ffmpeg *)data;
-
-  tms_ffmpeg_mp4_main("/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4");
-
-  // while (!g_atomic_int_get(&ffmpeg->destroyed) && g_atomic_int_get(&ffmpeg->webrtcup))
-  // {
-  //   janus_mutex_lock(&ffmpeg->mutex);
-  //   if (g_atomic_int_get(&ffmpeg->playing))
-  //   {
-  //     tms_mp4_ffmpeg_send_event(ffmpeg, "playing.ffmpeg");
-  //   }
-  //   else
-  //   {
-  //     tms_mp4_ffmpeg_send_event(ffmpeg, "paused.ffmpeg");
-  //   }
-  //   janus_mutex_unlock(&ffmpeg->mutex);
-  //   sleep(1);
-  // }
+  janus_plugin_session *handle = ffmpeg->handle;
+  tms_ffmpeg_mp4_main(gateway, handle, ffmpeg, "/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4");
 
   /* 通知线程已经结束 */
   janus_mutex_lock(&ffmpeg->mutex);
@@ -166,7 +143,7 @@ static void *tms_mp4_async_ffmpeg_thread(void *data)
   // 引用次数减1
   janus_refcount_decrease(&ffmpeg->ref);
 
-  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束异步媒体处理线程\n");
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束媒体发送线程\n");
 }
 /* 销毁ffmpeg实例。可能播放线程仍然在执行，修改状态，需要加锁。 */
 static void tms_mp4_ffmpeg_destroy(tms_mp4_ffmpeg *ffmpeg)
@@ -313,59 +290,67 @@ static void *tms_mp4_async_message_thread(void *data)
     else if (g_atomic_int_get(&session->webrtcup))
     {
       /* Webrtc连接已经建立，可以控制媒体播放 */
-      if (!strcasecmp(request_text, "play.file"))
+      if (NULL != strstr(request_text, ".file"))
       {
-        /* 要求播放指定的文件 */
-        tms_mp4_ffmpeg *ffmpeg = g_malloc0(sizeof(tms_mp4_ffmpeg));
-        ffmpeg->handle = msg->handle;
-        session->ffmpeg = ffmpeg;
-        janus_refcount_increase(&ffmpeg->ref); // 会话使用，引用加1
-
-        janus_refcount_init(&ffmpeg->ref, tms_mp4_ffmpeg_ref_free);
-        g_atomic_int_set(&ffmpeg->webrtcup, 1);
-        g_atomic_int_set(&ffmpeg->playing, 1);
-        g_atomic_int_set(&ffmpeg->destroyed, 0);
-        janus_mutex_init(&ffmpeg->mutex);
-
-        /* 启用ffmpeg媒体播放线程 */
-        GError *error = NULL;
-        janus_refcount_increase(&ffmpeg->ref); // 线程使用，引用加1
-        g_thread_try_new("PlayMp4 ffmpeg thread", tms_mp4_async_ffmpeg_thread, ffmpeg, &error);
-        if (error != NULL)
+        tms_mp4_ffmpeg *ffmpeg;
+        if (!strcasecmp(request_text, "play.file"))
         {
-          JANUS_LOG(LOG_ERR, "启动ffmpeg媒体播放线程发生错误：%d (%s)\n", error->code, error->message ? error->message : "??");
-          janus_refcount_decrease(&ffmpeg->ref);
+          /* 要求播放指定的文件 */
+          if (!session->ffmpeg)
+          {
+            ffmpeg = g_malloc0(sizeof(tms_mp4_ffmpeg));
+            ffmpeg->handle = msg->handle;
+            ffmpeg->webrtcup = 1;
+            ffmpeg->playing = 1;
+            ffmpeg->destroyed = 0;
+            ffmpeg->nb_audio_rtps = 0;
+            session->ffmpeg = ffmpeg;
+
+            janus_mutex_init(&ffmpeg->mutex);
+            janus_refcount_init(&ffmpeg->ref, tms_mp4_ffmpeg_ref_free);
+            janus_refcount_increase(&ffmpeg->ref); // 会话使用，引用加1
+          }
+          else
+          {
+            ffmpeg = session->ffmpeg;
+          }
+          /* 启用ffmpeg媒体播放线程 */
+          GError *error = NULL;
+          janus_refcount_increase(&ffmpeg->ref); // 线程使用，引用加1
+          g_thread_try_new("PlayMp4 ffmpeg thread", tms_mp4_async_ffmpeg_thread, ffmpeg, &error);
+          if (error != NULL)
+          {
+            JANUS_LOG(LOG_ERR, "启动ffmpeg媒体播放线程发生错误：%d (%s)\n", error->code, error->message ? error->message : "??");
+            janus_refcount_decrease(&ffmpeg->ref);
+          }
+          else
+          {
+            /* 通知启用了媒体播放线程 */
+            json_t *event = json_object();
+            json_object_set_new(event, "playmp4", json_string("launch.ffmpeg"));
+            int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, NULL);
+            if (ret < 0)
+              JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+          }
         }
-        else
+        else if (!strcasecmp(request_text, "pause.file"))
         {
-          /* 通知启用了媒体播放线程 */
-          json_t *event = json_object();
-          json_object_set_new(event, "playmp4", json_string("launch.ffmpeg"));
-          int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, NULL);
-          if (ret < 0)
-            JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+          g_atomic_int_set(&ffmpeg->playing, 2);
         }
-      }
-      else if (!strcasecmp(request_text, "pause.file"))
-      {
-        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
-        g_atomic_int_set(&ffmpeg->playing, 0);
-      }
-      else if (!strcasecmp(request_text, "resume.file"))
-      {
-        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
-        g_atomic_int_set(&ffmpeg->playing, 1);
-      }
-      else if (!strcasecmp(request_text, "stop.file"))
-      {
-        tms_mp4_ffmpeg *ffmpeg = session->ffmpeg;
-        g_atomic_int_set(&ffmpeg->destroyed, 1);
+        else if (!strcasecmp(request_text, "resume.file"))
+        {
+          g_atomic_int_set(&ffmpeg->playing, 1);
+        }
+        else if (!strcasecmp(request_text, "stop.file"))
+        {
+          g_atomic_int_set(&ffmpeg->playing, 0);
+        }
       }
     }
     tms_mp4_message_free(msg);
   }
 
-  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束插件消息处理线程\n");
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 结束消息处理线程\n");
 }
 
 /**************************************

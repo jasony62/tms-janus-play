@@ -1,9 +1,6 @@
 <template>
   <div id="dev">
     <div>
-      dev
-    </div>
-    <div>
       <button @click="createSession">创建会话</button>
       <button @click="attach">关联插件</button>
       <button @click="sendMessage">发送消息</button>
