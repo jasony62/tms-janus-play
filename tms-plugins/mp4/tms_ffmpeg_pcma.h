@@ -39,6 +39,7 @@ typedef struct TmsAudioRtpContext
   uint32_t timestamp;
   uint32_t base_timestamp;
   uint32_t cur_timestamp;
+  int8_t payload_type;
 } TmsAudioRtpContext;
 
 int tms_init_pcma_encoder(PCMAEnc *encoder);
@@ -53,6 +54,8 @@ int tms_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timest
   rtp_ctx->base_timestamp = base_timestamp;
   rtp_ctx->cur_timestamp = base_timestamp;
   rtp_ctx->timestamp = 0;
+
+  rtp_ctx->payload_type = ALAW_PAYLOAD_TYPE;
 
   return 0;
 }
@@ -265,7 +268,7 @@ static void tms_add_audio_frame_send_delay(AVFrame *frame, TmsPlayContext *play)
  * 
  * 应该处理采样数超过限制进行分包的情况 
  */
-static int tms_rtp_send_audio(PCMAEnc *encoder, TmsPlayContext *play, TmsAudioRtpContext *rtp_ctx)
+static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsAudioRtpContext *rtp_ctx)
 {
   janus_callbacks *gateway = play->gateway;
   janus_plugin_session *handle = play->handle;
@@ -274,7 +277,6 @@ static int tms_rtp_send_audio(PCMAEnc *encoder, TmsPlayContext *play, TmsAudioRt
   int nb_samples = encoder->nb_samples; // 每个采样1个字节
   rtp_ctx->timestamp = rtp_ctx->cur_timestamp;
   int16_t seq = play->nb_before_audio_rtps + play->nb_audio_rtps + 1;
-  int8_t audio_pt = ALAW_PAYLOAD_TYPE;
 
   char *buffer = g_malloc0(1500); // 1个包最大的采样数是多少？
 
@@ -282,7 +284,7 @@ static int tms_rtp_send_audio(PCMAEnc *encoder, TmsPlayContext *play, TmsAudioRt
   janus_rtp_header *header = (janus_rtp_header *)buffer;
   header->version = 2;
   header->markerbit = 1;
-  header->type = audio_pt;
+  header->type = rtp_ctx->payload_type;
   header->seq_number = htons(seq);
   header->timestamp = htonl(rtp_ctx->timestamp);
   header->ssrc = htonl(1); /* The gateway will fix this anyway */
@@ -389,7 +391,7 @@ int tms_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler
       //   tms_audio_rtcp_first_sr(play, rtp_ctx);
       // }
       /* 通过rtp发送音频 */
-      tms_rtp_send_audio(pcma_enc, play, rtp_ctx);
+      tms_rtp_send_audio_frame(pcma_enc, play, rtp_ctx);
     }
     av_packet_unref(&pcma_enc->packet);
     av_frame_free(&pcma_enc->frame);

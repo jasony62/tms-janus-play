@@ -139,6 +139,9 @@ int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, 
   /* 初始化音视频流rtp上下文 */
   TmsAudioRtpContext audio_rtp_ctx;
   tms_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
+  TmsVideoRtpContext video_rtp_ctx;
+  uint8_t video_buf[1470];
+  tms_init_video_rtp_context(&video_rtp_ctx, video_buf, play.start_time_us);
 
   /* 解析文件开始播放 */
   AVPacket *pkt = av_packet_alloc(); // ffmpeg媒体包
@@ -184,7 +187,7 @@ int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, 
     TmsInputStream *ist = ists[pkt->stream_index];
     if (ist->codec->type == AVMEDIA_TYPE_VIDEO)
     {
-      if ((ret = tms_handle_video_packet(&play, ist, pkt, h264bsfc)) < 0)
+      if ((ret = tms_handle_video_packet(&play, ist, pkt, h264bsfc, &video_rtp_ctx)) < 0)
       {
         av_packet_unref(pkt);
         goto clean;
@@ -203,9 +206,10 @@ int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, 
   }
 
 end:
+  ffmpeg->nb_video_rtps += play.nb_video_rtps;
   ffmpeg->nb_audio_rtps += play.nb_audio_rtps;
   /* Log end */
-  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
+  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP视频包，累计发送 %d 个视频RTP包，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_video_rtps, ffmpeg->nb_video_rtps, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
 
 clean:
   if (nb_streams > 0)
