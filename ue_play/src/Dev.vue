@@ -32,7 +32,7 @@
 // eslint-disable-next-line
 const GlobalJanus = Janus
 
-let server = `https://${process.env.VUE_APP_JANUS_ADDRESS}:${process.env.VUE_APP_JANUS_HTTPS_PORT}/janus`
+import { JANUS_SERVER as server } from './global'
 
 export default {
   name: 'Dev',

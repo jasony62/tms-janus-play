@@ -1,8 +1,0 @@
-general: {
-    rtp_port_range = "$rtp_port_range"  # Range of ports to use for RTP/RTCP when '0' is
-                                    # passed as port for a mountpoint (default=10000-60000)
-    audiopt = $audiopt 
-    audiortpmap = "$audiortpmap"
-    videopt = $videopt
-    videortpmap = "$videortpmap"
-}

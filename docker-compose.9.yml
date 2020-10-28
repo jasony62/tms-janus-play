@@ -1,14 +1,5 @@
 version: '3.7'
 services:
-  coturn:
-    # build: ./coturn
-    image: instrumentisto/coturn:4.5.1
-    # image: tms-janus/coturn-ubuntu
-    container_name: tms-janus-coturn
-    # volumes:
-    # - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf
-    # network_mode: 'host'
-
   janus:
     build:
       context: ./janus-9
@@ -25,19 +16,6 @@ services:
     env_file:
       - ./sample.env
 
-  ffmpeg:
-    build: ./ffmpeg
-    image: tms-janus/ffmpeg
-    container_name: tms-janus-ffmpeg
-    # ports:
-    #   - '3000:3000'
-    #   - '3001:3001'
-    # volumes:
-    #   - ./ffmpeg/files:/home/node/app/files
-    #   - /usr/local/etc/ssl:/usr/local/etc/ssl
-    depends_on:
-      - janus
-
   ue_play:
     build:
       context: ./ue_play
@@ -48,11 +26,6 @@ services:
         # vue_app_janus_hostname: janus
         # vue_app_janus_http_port: 8088
         # vue_app_janus_https_port: 8089
-        # vue_app_ffmpeg_protocol: https
-        # vue_app_ffmpeg_api_port: 3443
-        # vue_app_ffmpeg_api_path: ffmpeg
-        # vue_app_ffmpeg_push_port: 3444
-        # vue_app_ffmpeg_rtp_target: janus
     image: tms-janus/ue-player:latest
     container_name: tms-janus-ue_play
     # ports:

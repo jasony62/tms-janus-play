@@ -86,9 +86,6 @@ EXPOSE 8088 8089
 # janus服务环境变量
 ENV ssl_certificate="" ssl_certificate_key="" stun_server="" debug_level=4 
 
-# rtprx插件环境变量
-ENV rtp_port_range="20000-40000" audiopt=111 audiortpmap="opus/48000/2" videopt=100 videortpmap="H264/90000"
-
 ADD start_janus.sh /root/start_janus.sh
 RUN chmod +x /root/start_janus.sh
 

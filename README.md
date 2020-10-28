@@ -1,6 +1,8 @@
 # tms-janus-streaming
 
-基于`janus-gateway`实现的流媒体服务器。
+基于`janus-gateway`实现的流媒体服务器，用于学习和验证`janus`的功能。
+
+`ue_demo`是`janus`自带的演示程序。`ue_play`是媒体播放端。
 
 播放端（ue_player）和`janus`服务通过 http 端口（8088）或 https 端口 （8089）服务建立 WebRTC 链接。
 
@@ -58,26 +60,14 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 参考：https://janus.conf.meetecho.com
 
-| 变量           | 说明 | 默认值 |
-| -------------- | ---- | ------ |
-| rtp_port_range |      |        |
-| audiopt        |      |        |
-| audiortpmap    |      |        |
-| videopt        |      |        |
-| videortpmap    |      |        |
+| 变量 | 说明 | 默认值 |
+| ---- | ---- | ------ |
+|      |      |        |
+|      |      |        |
+|      |      |        |
+|      |      |        |
 
-## ffmpeg
-
-用`ffmpeg`控制媒体文件播放。
-
-在`tms-koa`框架中安装`tms-koa-ffmpeg`插件实现媒体播放。
-
-| 变量                | 说明             | 默认值                        |
-| ------------------- | ---------------- | ----------------------------- |
-| ssl_certificate     | ssl 证书存放位置 | /usr/local/etc/ssl/server.crt |
-| ssl_certificate_key | ssl 证书存放位置 | /usr/local/etc/ssl/server.key |
-
-## 播放端（ue_player）
+## 播放端（ue_play）
 
 在 nginx 中运行控制媒体播放的前端代码。
 
@@ -87,20 +77,12 @@ Janus-gateway 是开源的 WebRTC 服务器。
 
 环境变量
 
-| 变量                      | 说明                                                        | 默认值 |
-| ------------------------- | ----------------------------------------------------------- | ------ |
-| VUE_APP_JANUS_ADDRESS     | `janus`服务的地址。如果不指定，认为和播放端部署在同一主机。 | 无     |
-| VUE_APP_JANUS_HTTP_PORT   | `janus`服务 http 服务端口。与浏览器地址栏的协议一致。       | 8088   |
-| VUE_APP_JANUS_HTTPS_PORT  | `janus`服务 https 服务端口。与浏览器地址栏的协议一致。      | 8089   |
-|                           |                                                             |        |
-| VUE_APP_FFMPEG_PROTOCOL   | `ffmpeg`服务协议（http/https）。                            | http   |
-| VUE_APP_FFMPEG_HOSTNAME   | `ffmpeg`服务接口地址。                                      | 无     |
-| VUE_APP_FFMPEG_API_PORT   | `ffmpeg`服务调用 api 端口。                                 | 3000   |
-| VUE_APP_FFMPEG_API_PATH   | `ffmpeg`服务调用 api 入口路径。                             | ffmpeg |
-| VUE_APP_FFMPEG_PUSH_PORT  | `ffmpeg`推送服务端口，接收`ffmpeg`推送事件。                | 3001   |
-| VUE_APP_FFMPEG_RTP_TARGET | 接收`ffmpeg`发送的 RTP 流的地址                             | janus  |
-
-默认情况下所有的模块都在 docker 中运行，`janus`服务用于接收`ffmpeg`服务发送的 RTP 包。
+| 变量                     | 说明                                                        | 默认值 |
+| ------------------------ | ----------------------------------------------------------- | ------ |
+| VUE_APP_JANUS_ADDRESS    | `janus`服务的地址。如果不指定，认为和播放端部署在同一主机。 | 无     |
+| VUE_APP_JANUS_HTTP_PORT  | `janus`服务 http 服务端口。与浏览器地址栏的协议一致。       | 8088   |
+| VUE_APP_JANUS_HTTPS_PORT | `janus`服务 https 服务端口。与浏览器地址栏的协议一致。      | 8089   |
+|                          |                                                             |        |
 
 ## ue-demo
 
@@ -109,59 +91,6 @@ janus-gateway 自带的演示程序。
 # 环境准备
 
 项目目录下新建`docker-compose.override.yml`文件。
-
-```
-version: '3.7'
-services:
-  coturn:
-  # network_mode: 'host'
-
-  janus:
-    # network_mode: 'host'
-    ports:
-      - '8088:8088'
-      - '8089:8089'
-      - '5004:5004/udp'
-      - '10000-10099:10000-10099/udp'
-    volumes:
-      - /Users/yangyue/ssl:/usr/local/etc/ssl
-    env_file:
-      - ./local.env
-
-  ffmpeg:
-    ports:
-      - '3000:3000'
-      - '3443:3443'
-      - '3444:3444'
-    volumes:
-      - ./ffmpeg/files:/home/node/app/files
-      - /Users/yangyue/ssl:/usr/local/etc/ssl
-    env_file:
-      - ./local.env
-
-  ue_player:
-    build:
-      args:
-        vue_app_janus_address: janus # 需要指定为janus服务的地址
-        vue_app_ffmpeg_http_server: https://localhost:3443/ffmpeg
-        vue_app_ffmpeg_push_server: https://localhost:3444
-    volumes:
-      - /Users/yangyue/ssl:/usr/local/etc/ssl
-    env_file:
-      - ./local.env
-    ports:
-      - '8080:80'
-      - '8443:443'
-
-  ue_demo:
-    volumes:
-      - /Users/yangyue/ssl:/usr/local/etc/ssl
-    env_file:
-      - ./local.env
-    ports:
-      - '8081:80'
-      - '8444:443'
-```
 
 在 linux 环境下，服务 janus 应使用的网络模式为`host`，否则会报错（和 mDNS 有关，目前不知如何怎样解决）。但是，在 Mac 和 Windows 环境下不支持`host`模式。
 
@@ -189,7 +118,7 @@ debug_level=4
 
 ## 样本数据
 
-webm
+mp4
 
 ## player
 
