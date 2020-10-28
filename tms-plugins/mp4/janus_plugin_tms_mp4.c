@@ -130,7 +130,7 @@ static void *tms_mp4_async_ffmpeg_thread(void *data)
 
   tms_mp4_ffmpeg *ffmpeg = (tms_mp4_ffmpeg *)data;
   janus_plugin_session *handle = ffmpeg->handle;
-  tms_ffmpeg_mp4_main(gateway, handle, ffmpeg, "/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4");
+  tms_ffmpeg_mp4_main(gateway, handle, ffmpeg);
 
   /* 通知线程已经结束 */
   janus_mutex_lock(&ffmpeg->mutex);
@@ -154,6 +154,7 @@ static void tms_mp4_ffmpeg_destroy(tms_mp4_ffmpeg *ffmpeg)
 
   g_atomic_int_set(&ffmpeg->destroyed, 1);
   g_atomic_pointer_set(&ffmpeg->handle, NULL);
+  g_free(ffmpeg->filename);
 
   janus_mutex_unlock(&ffmpeg->mutex);
 
@@ -295,6 +296,12 @@ static void *tms_mp4_async_message_thread(void *data)
         tms_mp4_ffmpeg *ffmpeg;
         if (!strcasecmp(request_text, "play.file"))
         {
+          /* 指定要播放的文件 */
+          json_t *file = json_object_get(root, "file");
+          const char *filename = json_string_value(file);
+          /* 检查文件是否存在 */
+          JANUS_LOG(LOG_VERB, "[PlayMp4] 准备播放文件%s\n", filename);
+
           /* 要求播放指定的文件 */
           if (!session->ffmpeg)
           {
@@ -313,7 +320,10 @@ static void *tms_mp4_async_message_thread(void *data)
           else
           {
             ffmpeg = session->ffmpeg;
+            g_free(ffmpeg->filename);
           }
+          ffmpeg->filename = g_strdup(filename);
+
           /* 启用ffmpeg媒体播放线程 */
           GError *error = NULL;
           janus_refcount_increase(&ffmpeg->ref); // 线程使用，引用加1

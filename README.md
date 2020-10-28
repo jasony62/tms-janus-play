@@ -26,6 +26,8 @@
 
 > docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/mp4; make install"
 
+> docker exec -it tms-janus_0.9.1 bash -c "cd ../janus-plugins/mp4; make; make install"
+
 自定义插件复制到/usr/src/janus-plugins
 
 编译插件
@@ -34,7 +36,7 @@
 ./configure --prefix=/opt/janus && \
 make && make install
 
-编译安装后要重启 janus
+> 编译安装后要重启 janus。如果是 down，插件需要编译和安装。
 
 > docker-compose -f docker-compose.9.yml restart janus
 
@@ -43,6 +45,10 @@ make && make install
 ## coturn
 
 为了在互联网上实现点对点通信，需要支持穿越 Nat，配置自己的 turn 服务器（coturn）。
+
+直接在有公网 ip 的服务器上用容器启动。启动脚本。
+
+instrumentisto/coturn:4.5.1
 
 参考：https://github.com/coturn/coturn
 
@@ -192,3 +198,24 @@ webm
 ## demo
 
 在浏览器中打开：https://yourdomain:8444
+
+因为 ssl 的问题需要手工执行一遍对 api 的调用。
+
+# 插件 api
+
+| 命令          | 功能                   |     |
+| ------------- | ---------------------- | --- |
+| request.offer | 请求服务端创建 offer。 |     |
+| play.file     | 播放指定文件。         |     |
+| pause.file    | 暂停播放。             |     |
+| resume.file   | 恢复播放。             |     |
+| stop.file     | 停止播放。             |     |
+
+播放文件时会启动一个播放线程，结束或停止播放时释放线程。
+
+# 事件
+
+|               |                    |     |
+| ------------- | ------------------ | --- |
+| launch.ffmpeg | 已经启动播放线程。 |     |
+| exit.ffmpeg   | 已经启动播放线程。 |     |

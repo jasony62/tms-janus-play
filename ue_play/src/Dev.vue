@@ -1,6 +1,9 @@
 <template>
   <div id="dev">
     <div>
+      <label>文件：<input type="text" v-model="file"></label>
+    </div>
+    <div>
       <button @click="createSession">创建会话</button>
       <button @click="attach">关联插件</button>
       <button @click="sendMessage">发送消息</button>
@@ -29,8 +32,7 @@
 // eslint-disable-next-line
 const GlobalJanus = Janus
 
-// let server = `https://192.168.31.100:8089/janus`
-let server = `https://192.168.43.165:8089/janus`
+let server = `https://${process.env.VUE_APP_JANUS_ADDRESS}:${process.env.VUE_APP_JANUS_HTTPS_PORT}/janus`
 
 export default {
   name: 'Dev',
@@ -40,6 +42,7 @@ export default {
       connected: false,
       attached: false,
       webrtcUp: false,
+      file: '/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4',
     }
   },
   computed: {},
@@ -145,7 +148,10 @@ export default {
     },
     playFile() {
       this.mp4Handle.send({
-        message: { request: 'play.file' },
+        message: {
+          request: 'play.file',
+          file: this.file,
+        },
       })
     },
     pauseFile() {

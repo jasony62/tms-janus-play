@@ -8,10 +8,11 @@
 /* 记录单次Webrtc连接播放的过程和状态 */
 typedef struct tms_mp4_ffmpeg
 {
+  char *filename; // 要播放的文件
   janus_plugin_session *handle;
   janus_refcount ref;
   janus_mutex mutex;
-  volatile gint webrtcup;  //Webrtc连接是否可用，只有可用时才可以播放，0：不可用，1：可用
+  volatile gint webrtcup;  // Webrtc连接是否可用，只有可用时才可以播放，0：不可用，1：可用
   volatile gint playing;   // 播放状态，0：停止，1：播放，2：暂停
   volatile gint destroyed; // 如果session已不可用，ffmpeg应处于销毁状态
   /* 保留播放状态 */
@@ -42,6 +43,6 @@ typedef struct TmsPlayContext
   janus_plugin_session *handle;
 } TmsPlayContext;
 
-int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp4_ffmpeg *ffmpeg, char *filename);
+int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp4_ffmpeg *ffmpeg);
 
 #endif
