@@ -1,5 +1,6 @@
 export const JANUS_ADDRESS = process.env.VUE_APP_JANUS_ADDRESS
 
+/* Janus REST 接口*/
 export const JANUS_SERVER = (() => {
   const address = JANUS_ADDRESS ? JANUS_ADDRESS : window.location.hostname
 
@@ -9,3 +10,6 @@ export const JANUS_SERVER = (() => {
 
   return server
 })()
+
+// eslint-disable-next-line
+export const GlobalJanus = Janus

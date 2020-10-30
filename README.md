@@ -1,16 +1,52 @@
-# tms-janus-streaming
-
 基于`janus-gateway`实现的流媒体服务器，用于学习和验证`janus`的功能。
 
-`ue_demo`是`janus`自带的演示程序。`ue_play`是媒体播放端。
+`ue_demo`是`janus`自带的演示程序。`ue_play`是媒体播放端，对接了`mp4`插件。
 
-播放端（ue_player）和`janus`服务通过 http 端口（8088）或 https 端口 （8089）服务建立 WebRTC 链接。
+播放端（ue_play）和`janus`服务通过 http 端口（8088）或 https 端口 （8089）服务建立 WebRTC 链接。
 
-播放端（ue_player）和`ffmpeg`服务通过端口控制`ffmpeg`播放媒体，通过端口接收推送事件。
+# 环境准备
 
-播放端（ue_player）将`janus`服务中用于接收`ffmpeg`服务发送的 RTP 包的地址和端口传递给`ffmpeg`服务。
+项目目录下新建`docker-compose.override.yml`文件。
 
-## 制作镜像
+在 linux 环境下，服务 janus 应使用的网络模式为`host`，否则会报错（和 mDNS 有关，目前不知如何怎样解决）。但是，在 Mac 和 Windows 环境下不支持`host`模式。
+
+因为浏览器使用 WebRTC 默认要使用 https，所以最好安装 ssl 证书。服务器生成好 ssl 证书后，janue 和 nginx 需要开启 https 端口，需要将存放证书的目录挂载到容器中。
+
+如果需要开启 stun 和 ssl，需要给环境变量赋值。新建文件`local.env`（可以根据需要命名），指定使用这个文件。
+
+```
+# ssl证书位置
+ssl_certificate=
+ssl_certificate_key=
+
+# janus stun-server
+stun_server=coturn:3478
+
+# debug级别
+debug_level=4
+```
+
+`stun_server`设置为 docker 中的`coturn`（使用部署位置的公网地址），或者公共的服务地址，例如：stun.stunprotocol.org:3478
+
+## ssl
+
+webrtc 要求通过 ssl 访问。
+
+## coturn
+
+为了在互联网上实现点对点通信，需要支持穿越 Nat，配置自己的`stun`服务。
+
+在有公网 ip 的服务器上，用下面的命令行启动`instrumentisto/coturn`容器。
+
+> docker run --name coturn-test --network=host instrumentisto/coturn
+
+参考：
+
+https://github.com/coturn/coturn
+
+https://github.com/instrumentisto/coturn-docker-image
+
+# 制作镜像
 
 下载`https://github.com/meetecho/janus-gateway/archive/v0.9.1.tar.gz`文件到`janus-9`目录下，执行命令`tar -zxf v0.9.1.tar.gz`，解压后的目录为`janus-gateway-0.9.1`。
 
@@ -42,19 +78,7 @@ make && make install
 
 > docker-compose -f docker-compose.9.yml restart janus
 
-## ssl
-
-## coturn
-
-为了在互联网上实现点对点通信，需要支持穿越 Nat，配置自己的 turn 服务器（coturn）。
-
-直接在有公网 ip 的服务器上用容器启动。启动脚本。
-
-instrumentisto/coturn:4.5.1
-
-参考：https://github.com/coturn/coturn
-
-## janus
+# janus
 
 Janus-gateway 是开源的 WebRTC 服务器。
 
@@ -67,7 +91,7 @@ Janus-gateway 是开源的 WebRTC 服务器。
 |      |      |        |
 |      |      |        |
 
-## 播放端（ue_play）
+# 播放端（ue_play）
 
 在 nginx 中运行控制媒体播放的前端代码。
 
@@ -84,33 +108,9 @@ Janus-gateway 是开源的 WebRTC 服务器。
 | VUE_APP_JANUS_HTTPS_PORT | `janus`服务 https 服务端口。与浏览器地址栏的协议一致。      | 8089   |
 |                          |                                                             |        |
 
-## ue-demo
+# ue-demo
 
 janus-gateway 自带的演示程序。
-
-# 环境准备
-
-项目目录下新建`docker-compose.override.yml`文件。
-
-在 linux 环境下，服务 janus 应使用的网络模式为`host`，否则会报错（和 mDNS 有关，目前不知如何怎样解决）。但是，在 Mac 和 Windows 环境下不支持`host`模式。
-
-因为浏览器使用 WebRTC 默认要使用 https，所以最好安装 ssl 证书。服务器生成好 ssl 证书后，janue 和 nginx 需要开启 https 端口，需要将存放证书的目录挂载到容器中。
-
-如果需要开启 stun 和 ssl，需要给环境变量赋值。新建文件`local.env`（可以根据需要命名），指定使用这个文件。
-
-```
-# ssl证书位置
-ssl_certificate=
-ssl_certificate_key=
-
-# janus stun-server
-stun_server=coturn:3478
-
-# debug级别
-debug_level=4
-```
-
-`stun_server`设置为 docker 中的`coturn`（使用部署位置的公网地址），或者公共的服务地址，例如：stun.stunprotocol.org:3478
 
 # 运行
 
@@ -129,22 +129,3 @@ mp4
 在浏览器中打开：https://yourdomain:8444
 
 因为 ssl 的问题需要手工执行一遍对 api 的调用。
-
-# 插件 api
-
-| 命令          | 功能                   |     |
-| ------------- | ---------------------- | --- |
-| request.offer | 请求服务端创建 offer。 |     |
-| play.file     | 播放指定文件。         |     |
-| pause.file    | 暂停播放。             |     |
-| resume.file   | 恢复播放。             |     |
-| stop.file     | 停止播放。             |     |
-
-播放文件时会启动一个播放线程，结束或停止播放时释放线程。
-
-# 事件
-
-|               |                    |     |
-| ------------- | ------------------ | --- |
-| launch.ffmpeg | 已经启动播放线程。 |     |
-| exit.ffmpeg   | 已经启动播放线程。 |     |
