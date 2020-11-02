@@ -1,16 +1,15 @@
 /**
  * 自定义Janus插件：播放mp4
  */
+import Janus from '../janus.es'
 
-import { JANUS_SERVER as server, GlobalJanus } from './global'
-
-const PLUGIN_NAME = 'janus.plugin.tms.mp4'
+const PLUGIN_NAME = 'janus.plugin.tms.audio'
 
 /* 建立会话 */
-function createSession(myJanus) {
+function createSession(server, myJanus) {
   let { state } = myJanus
   return new Promise((resolve, reject) => {
-    let janus = new GlobalJanus({
+    let janus = new Janus({
       server,
       success: () => {
         state.connected = true
@@ -41,7 +40,7 @@ function attach(myJanus) {
   if (!myJanus.janus) return Promise.reject()
   let { state } = myJanus
   return new Promise((resolve) => {
-    const opaqueId = 'dev-' + GlobalJanus.randomString(12)
+    const opaqueId = 'dev-' + Janus.randomString(12)
     myJanus.janus.attach({
       plugin: PLUGIN_NAME,
       opaqueId,
@@ -102,32 +101,32 @@ function hangupWebrtc(myJanus) {
 }
 
 function onRemoteStream(stream) {
-  GlobalJanus.debug(' ::: Got a remote stream :::')
-  GlobalJanus.debug(stream)
-  GlobalJanus.attachMediaStream(this.elemVideo, stream)
+  Janus.debug(' ::: Got a remote stream :::')
+  Janus.debug(stream)
+  Janus.attachMediaStream(this.elemAudio, stream)
 }
 
 function onPluginMessage(msg, remoteJsep) {
-  GlobalJanus.debug(' ::: Got a message :::')
-  GlobalJanus.debug(msg)
+  Janus.debug(' ::: Got a message :::')
+  Janus.debug(msg)
   if (remoteJsep !== undefined && remoteJsep !== null) {
-    GlobalJanus.debug('Handling Remote SDP as well...')
-    GlobalJanus.debug(remoteJsep)
+    Janus.debug('Handling Remote SDP as well...')
+    Janus.debug(remoteJsep)
     // Offer from the plugin, let's answer
     this.pluginHandle.createAnswer({
       jsep: remoteJsep,
       // We want recvonly audio/video and, if negotiated, datachannels
       media: { audioSend: false, videoSend: false, data: true },
       success: (localJsep) => {
-        GlobalJanus.debug('Got Local SDP!')
-        GlobalJanus.debug(localJsep)
+        Janus.debug('Got Local SDP!')
+        Janus.debug(localJsep)
         this.pluginHandle.send({
           message: { request: 'push.answer' },
           jsep: localJsep,
         })
       },
       error: (error) => {
-        GlobalJanus.error('WebRTC error:', error)
+        Janus.error('WebRTC error:', error)
       },
     })
   }
@@ -142,16 +141,16 @@ class MyJanusState {
   }
 }
 
-export class PlayMp4 {
-  constructor({ debug = 'all', elemVideo, onwebrtcstate = GlobalJanus.noop }) {
+export class PlayAudio {
+  constructor({ debug = 'all', elemAudio, onwebrtcstate = Janus.noop }) {
     this.janus = null
     this.pluginHandle = null
     this.onmessage = onPluginMessage.bind(this)
-    this.elemVideo = elemVideo
+    this.elemAudio = elemAudio
     this.onremotestream = onRemoteStream.bind(this)
     this.onwebrtcstate = onwebrtcstate
     this.state = new MyJanusState()
-    GlobalJanus.init({
+    Janus.init({
       debug,
       callback: () => {
         this.state.initialized = true
@@ -159,8 +158,8 @@ export class PlayMp4 {
     })
   }
   /* 建立WebRTC媒体通道 */
-  open() {
-    return createSession(this)
+  open(server) {
+    return createSession(server, this)
       .then(() => attach(this))
       .then(() => createWebrtc(this))
   }

@@ -10,6 +10,3 @@ export const JANUS_SERVER = (() => {
 
   return server
 })()
-
-// eslint-disable-next-line
-export const GlobalJanus = Janus

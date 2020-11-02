@@ -1,8 +1,5 @@
 <template>
-  <div id="dev">
-    <div>
-      <label>文件：<input type="text" v-model="file"></label>
-    </div>
+  <div>
     <div>
       <button @click="openWebrtc" :disabled="play.state.webrtcUp">打开通道</button>
       <button @click="closeWebrtc" :disabled="!play.state.webrtcUp">关闭通道</button>
@@ -26,17 +23,16 @@
 import { PlayMp4 } from './tms_play_mp4'
 
 export default {
-  name: 'Mp4',
+  name: 'TmsJanusMp4',
+  props: { server: { type: String }, file: { type: String } },
   data() {
     return {
-      file: '/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4',
       play: { state: { webrtcUp: false } },
     }
   },
-  computed: {},
   methods: {
     openWebrtc() {
-      this.play.open()
+      this.play.open(this.server)
     },
     closeWebrtc() {
       this.play.close()

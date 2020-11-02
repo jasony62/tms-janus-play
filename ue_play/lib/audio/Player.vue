@@ -1,8 +1,5 @@
 <template>
-  <div id="dev">
-    <div>
-      <label>文件：<input type="text" v-model="file"></label>
-    </div>
+  <div>
     <div>
       <button @click="openWebrtc" :disabled="play.state.webrtcUp">打开通道</button>
       <button @click="closeWebrtc" :disabled="!play.state.webrtcUp">关闭通道</button>
@@ -23,17 +20,16 @@
 import { PlayAudio } from './tms_play_audio'
 
 export default {
-  name: 'Audio',
+  name: 'TmsJanusAudio',
+  props: { server: { type: String }, file: { type: String } },
   data() {
     return {
-      file: '/home/janus/media/sine-8k-10s.mp3',
       play: { state: { webrtcUp: false } },
     }
   },
-  computed: {},
   methods: {
     openWebrtc() {
-      this.play.open()
+      this.play.open(this.server)
     },
     closeWebrtc() {
       this.play.close()
