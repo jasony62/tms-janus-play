@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import Demo from './Dev.vue'
+import Demo from './Mp3.vue'
 
 Vue.config.productionTip = false
 

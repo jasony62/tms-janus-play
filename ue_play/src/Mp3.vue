@@ -14,22 +14,19 @@
       <button @click="stopFile">停止播放</button>
     </div>
     <div>
-      <video id="remotevideo" width="320" height="240" autoplay playsinline @playing="playing" />
-    </div>
-    <div>
-      <img id="videoimage" width="320" height="240">
+      <audio id="remoteaudio" autoplay playsinline @playing="playing" />
     </div>
   </div>
 </template>
 
 <script>
-import { PlayMp4 } from './tms_play_mp4'
+import { PlayMp3 } from './tms_play_mp3'
 
 export default {
-  name: 'Dev',
+  name: 'Mp3',
   data() {
     return {
-      file: '/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4',
+      file: '/home/janus/media/sine-8k-10s.mp3',
       play: { state: { webrtcUp: false } },
     }
   },
@@ -48,7 +45,6 @@ export default {
       this.play.play(this.file)
     },
     pauseFile() {
-      this.printScreen()
       this.play.pause()
     },
     resumeFile() {
@@ -57,21 +53,10 @@ export default {
     stopFile() {
       this.play.stop()
     },
-    printScreen() {
-      let elemVideo = document.querySelector('#remotevideo')
-      let canvas = document.createElement('canvas')
-      canvas.width = elemVideo.videoWidth
-      canvas.height = elemVideo.videoHeight
-      canvas
-        .getContext('2d')
-        .drawImage(elemVideo, 0, 0, canvas.width, canvas.height)
-      let elemImg = document.querySelector('#videoimage')
-      elemImg.src = canvas.toDataURL('image/png')
-    },
   },
   mounted() {
-    this.play = new PlayMp4({
-      elemVideo: document.querySelector('#remotevideo'),
+    this.play = new PlayMp3({
+      elemAudio: document.querySelector('#remoteaudio'),
     })
   },
 }

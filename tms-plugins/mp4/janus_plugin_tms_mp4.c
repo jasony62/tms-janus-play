@@ -10,7 +10,7 @@
 #define TMS_JANUS_PLUGIN_MP4_VERSION_STRING "0.0.1"
 #define TMS_JANUS_PLUGIN_MP4_DESCRIPTION "play mp4 file"
 #define TMS_JANUS_PLUGIN_MP4_NAME "PlayMp4"
-#define TMS_JANUS_PLUGIN_MP4_AUTHOR "Jason Young"
+#define TMS_JANUS_PLUGIN_MP4_AUTHOR "Jasony62"
 #define TMS_JANUS_PLUGIN_MP4_PACKAGE "janus.plugin.tms.mp4"
 
 janus_plugin *create(void);
