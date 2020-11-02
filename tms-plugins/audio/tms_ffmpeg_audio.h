@@ -1,10 +1,10 @@
-#ifndef TMS_FFMPEG_MP3_H
-#define TMS_FFMPEG_MP3_H
+#ifndef TMS_FFMPEG_AUDIO_H
+#define TMS_FFMPEG_AUDIO_H
 
 #include <rtp.h>
 
 /* 记录单次Webrtc连接播放的过程和状态 */
-typedef struct tms_mp3_ffmpeg
+typedef struct tms_audio_ffmpeg
 {
   char *filename; // 要播放的文件
   janus_plugin_session *handle;
@@ -15,7 +15,7 @@ typedef struct tms_mp3_ffmpeg
   volatile gint destroyed; // 如果session已不可用，ffmpeg应处于销毁状态
   /* 保留播放状态 */
   int nb_audio_rtps; // 音频rtp包累计发送数量，解决多次播放，生成seq的问题
-} tms_mp3_ffmpeg;
+} tms_audio_ffmpeg;
 
 /* 记录单次播放的过程和状态 */
 typedef struct TmsPlayContext
@@ -37,6 +37,6 @@ typedef struct TmsPlayContext
   janus_plugin_session *handle;
 } TmsPlayContext;
 
-int tms_ffmpeg_mp3_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp3_ffmpeg *ffmpeg);
+int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_audio_ffmpeg *ffmpeg);
 
 #endif

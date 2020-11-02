@@ -10,12 +10,12 @@ module.exports = {
       title: process.env.VUE_APP_TITLE,
       chunks: ['chunk-vendors', 'chunk-common', 'mp4'],
     },
-    mp3: {
-      entry: 'src/mp3.js',
+    audio: {
+      entry: 'src/audio.js',
       template: 'public/index.html',
-      filename: './mp3.html',
+      filename: './audio.html',
       title: process.env.VUE_APP_TITLE,
-      chunks: ['chunk-vendors', 'chunk-common', 'mp3'],
+      chunks: ['chunk-vendors', 'chunk-common', 'audio'],
     },
   },
   parallel: require('os').cpus().length > 1,

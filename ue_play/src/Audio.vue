@@ -20,10 +20,10 @@
 </template>
 
 <script>
-import { PlayMp3 } from './tms_play_mp3'
+import { PlayAudio } from './tms_play_audio'
 
 export default {
-  name: 'Mp3',
+  name: 'Audio',
   data() {
     return {
       file: '/home/janus/media/sine-8k-10s.mp3',
@@ -55,7 +55,7 @@ export default {
     },
   },
   mounted() {
-    this.play = new PlayMp3({
+    this.play = new PlayAudio({
       elemAudio: document.querySelector('#remoteaudio'),
     })
   },

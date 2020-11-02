@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import Demo from './Mp3.vue'
+import Demo from './Audio.vue'
 
 Vue.config.productionTip = false
 

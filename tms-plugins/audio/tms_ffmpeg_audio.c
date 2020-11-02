@@ -12,18 +12,18 @@
 #include <libavutil/timestamp.h>
 #include <libswresample/swresample.h>
 
-#include "tms_ffmpeg_mp3.h"
+#include "tms_ffmpeg_audio.h"
 #include "tms_ffmpeg_pcma.h"
 #include "tms_ffmpeg_stream.h"
 
 /***********************************
- * 解析mp3文件，通过janus进行转发
+ * 解析mp3和wav文件，通过janus进行转发
  * 
- * 输出h264和pcma
+ * 输出pcma
  * 支持播放控制，暂停，恢复，停止 
  ***********************************/
 /* 初始化播放器上下文对象 */
-static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp3_ffmpeg *ffmpeg, TmsPlayContext *play)
+static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session *handle, tms_audio_ffmpeg *ffmpeg, TmsPlayContext *play)
 {
   play->start_time_us = av_gettime_relative(); // 单位是微秒
   play->end_time_us = 0;
@@ -82,12 +82,12 @@ static int tms_open_file(char *filename, AVFormatContext **ictx, Resampler *resa
 
     if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
     {
-      if ((ret = tms_mp3_init_pcma_encoder(pcma_enc)) < 0)
+      if ((ret = tms_audio_init_pcma_encoder(pcma_enc)) < 0)
       {
         return -1;
       }
       /* 设置重采样，将解码出的fltp采样格式，转换为s16采样格式 */
-      if ((ret = tms_mp3_init_audio_resampler(ist->dec_ctx, pcma_enc->cctx, resampler)) < 0)
+      if ((ret = tms_audio_init_audio_resampler(ist->dec_ctx, pcma_enc->cctx, resampler)) < 0)
       {
         return -1;
       }
@@ -102,7 +102,7 @@ static int tms_open_file(char *filename, AVFormatContext **ictx, Resampler *resa
 /*************************************
  * 执行入口 
  *************************************/
-int tms_ffmpeg_mp3_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp3_ffmpeg *ffmpeg)
+int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_audio_ffmpeg *ffmpeg)
 {
   int ret = 0;
 
@@ -128,7 +128,7 @@ int tms_ffmpeg_mp3_main(janus_callbacks *gateway, janus_plugin_session *handle, 
 
   /* 初始化音视频流rtp上下文 */
   TmsAudioRtpContext audio_rtp_ctx;
-  tms_mp3_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
+  tms_audio_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
 
   /* 解析文件开始播放 */
   AVPacket *pkt = av_packet_alloc(); // ffmpeg媒体包
@@ -174,7 +174,7 @@ int tms_ffmpeg_mp3_main(janus_callbacks *gateway, janus_plugin_session *handle, 
     TmsInputStream *ist = ists[pkt->stream_index];
     if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
     {
-      if ((ret = tms_mp3_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame, &audio_rtp_ctx)) < 0)
+      if ((ret = tms_audio_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame, &audio_rtp_ctx)) < 0)
       {
         av_packet_unref(pkt);
         goto clean;

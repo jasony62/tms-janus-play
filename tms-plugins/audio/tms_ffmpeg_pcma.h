@@ -3,12 +3,12 @@
 #define ALAW_PAYLOAD_TYPE 8
 #define RTP_PCMA_TIME_BASE 8000 // RTP中pcma流的时间
 
-#ifndef TMS_MP3_PCMA_H
-#define TMS_MP3_PCMA_H
+#ifndef TMS_AUDIO_PCMA_H
+#define TMS_AUDIO_PCMA_H
 
 #include <rtp.h>
 
-#include "tms_ffmpeg_mp3.h"
+#include "tms_ffmpeg_audio.h"
 #include "tms_ffmpeg_stream.h"
 /**
  * PCMA编码器 
@@ -42,14 +42,14 @@ typedef struct TmsAudioRtpContext
   int8_t payload_type;
 } TmsAudioRtpContext;
 
-int tms_mp3_init_pcma_encoder(PCMAEnc *encoder);
-int tms_mp3_init_audio_resampler(AVCodecContext *input_codec_context,
-                                 AVCodecContext *output_codec_context,
-                                 Resampler *resampler);
-int tms_mp3_init_audio_rtp_context(TmsAudioRtpContext *audio_rtp_ctx, uint32_t base_timestamp);
+int tms_audio_init_pcma_encoder(PCMAEnc *encoder);
+int tms_audio_init_audio_resampler(AVCodecContext *input_codec_context,
+                                   AVCodecContext *output_codec_context,
+                                   Resampler *resampler);
+int tms_audio_init_audio_rtp_context(TmsAudioRtpContext *audio_rtp_ctx, uint32_t base_timestamp);
 
 /* 初始化音频rtp发送上下文 */
-int tms_mp3_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timestamp)
+int tms_audio_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timestamp)
 {
   rtp_ctx->base_timestamp = base_timestamp;
   rtp_ctx->cur_timestamp = base_timestamp;
@@ -61,7 +61,7 @@ int tms_mp3_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_ti
 }
 
 /* 初始化音频编码器（转换为pcma格式） */
-int tms_mp3_init_pcma_encoder(PCMAEnc *encoder)
+int tms_audio_init_pcma_encoder(PCMAEnc *encoder)
 {
   AVCodec *c;
   c = avcodec_find_encoder(AV_CODEC_ID_PCM_ALAW);
@@ -112,9 +112,9 @@ int tms_mp3_init_pcma_encoder(PCMAEnc *encoder)
  * @param[out] resample_context     Resample context for the required conversion
  * @return Error code (0 if successful)
  */
-int tms_mp3_init_audio_resampler(AVCodecContext *input_codec_context,
-                                 AVCodecContext *output_codec_context,
-                                 Resampler *resampler)
+int tms_audio_init_audio_resampler(AVCodecContext *input_codec_context,
+                                   AVCodecContext *output_codec_context,
+                                   Resampler *resampler)
 {
   int error;
 
@@ -272,39 +272,52 @@ static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsA
   janus_callbacks *gateway = play->gateway;
   janus_plugin_session *handle = play->handle;
 
+  rtp_ctx->timestamp = rtp_ctx->cur_timestamp;
+
   uint8_t *output_data = encoder->packet.data;
   int nb_samples = encoder->nb_samples; // 每个采样1个字节
-  rtp_ctx->timestamp = rtp_ctx->cur_timestamp;
-  int16_t seq = play->nb_before_audio_rtps + play->nb_audio_rtps + 1;
+  int nb_left_samples = nb_samples;
+  while (nb_left_samples > 0)
+  {
+    /* 是否需要通过多个RTP包发送 */
+    int nb_send_samples; // 单次发送的采样数
+    nb_send_samples = nb_left_samples > 1024 ? 1024 : nb_left_samples;
 
-  char *buffer = g_malloc0(1500); // 1个包最大的采样数是多少？
+    rtp_ctx->timestamp += nb_samples - nb_left_samples;
 
-  /* 设置RTP头 */
-  janus_rtp_header *header = (janus_rtp_header *)buffer;
-  header->version = 2;
-  header->markerbit = 1;
-  header->type = rtp_ctx->payload_type;
-  header->seq_number = htons(seq);
-  header->timestamp = htonl(rtp_ctx->timestamp);
-  header->ssrc = htonl(1); /* The gateway will fix this anyway */
+    int16_t seq = play->nb_before_audio_rtps + play->nb_audio_rtps + 1;
 
-  memcpy(buffer + RTP_HEADER_SIZE, output_data, nb_samples);
+    char *buffer = g_malloc0(1500); // 1个包最大的采样数是多少？
 
-  uint16_t length = RTP_HEADER_SIZE + nb_samples; // 每个采样1字节，所以：头长度+采样长度=包长度
+    /* 设置RTP头 */
+    janus_rtp_header *header = (janus_rtp_header *)buffer;
+    header->version = 2;
+    header->markerbit = 1;
+    header->type = rtp_ctx->payload_type;
+    header->seq_number = htons(seq);
+    header->timestamp = htonl(rtp_ctx->timestamp);
+    header->ssrc = htonl(1); /* The gateway will fix this anyway */
 
-  janus_plugin_rtp janus_rtp = {.video = FALSE, .buffer = (char *)buffer, .length = length};
-  gateway->relay_rtp(handle, &janus_rtp);
+    memcpy(buffer + RTP_HEADER_SIZE, output_data, nb_send_samples);
 
-  play->nb_audio_rtps++;
+    uint16_t length = RTP_HEADER_SIZE + nb_send_samples; // 每个采样1字节，所以：头长度+采样长度=包长度
 
-  g_free(buffer);
+    janus_plugin_rtp janus_rtp = {.video = FALSE, .buffer = (char *)buffer, .length = length};
+    gateway->relay_rtp(handle, &janus_rtp);
 
-  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%ld\n", play->nb_audio_rtps, seq, rtp_ctx->timestamp);
+    play->nb_audio_rtps++;
+
+    g_free(buffer);
+
+    nb_left_samples -= nb_send_samples;
+
+    JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%ld\n", play->nb_audio_rtps, seq, rtp_ctx->timestamp);
+  }
 
   return 0;
 }
 /* 处理音频媒体包 */
-int tms_mp3_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler *resampler, PCMAEnc *pcma_enc, AVPacket *pkt, AVFrame *frame, TmsAudioRtpContext *rtp_ctx)
+int tms_audio_handle_audio_packet(TmsPlayContext *play, TmsInputStream *ist, Resampler *resampler, PCMAEnc *pcma_enc, AVPacket *pkt, AVFrame *frame, TmsAudioRtpContext *rtp_ctx)
 {
   int ret = 0;
 

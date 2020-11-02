@@ -4,7 +4,7 @@
 
 import { JANUS_SERVER as server, GlobalJanus } from './global'
 
-const PLUGIN_NAME = 'janus.plugin.tms.mp3'
+const PLUGIN_NAME = 'janus.plugin.tms.audio'
 
 /* 建立会话 */
 function createSession(myJanus) {
@@ -142,7 +142,7 @@ class MyJanusState {
   }
 }
 
-export class PlayMp3 {
+export class PlayAudio {
   constructor({ debug = 'all', elemAudio, onwebrtcstate = GlobalJanus.noop }) {
     this.janus = null
     this.pluginHandle = null
