@@ -20,3 +20,7 @@
 | ------------- | ------------------ | --- |
 | launch.ffmpeg | 已经启动播放线程。 |     |
 | exit.ffmpeg   | 已经启动播放线程。 |     |
+
+# docker
+
+> docker exec -it tms-janus_0.9.1 bash -c "cd ../janus-plugins/mp4; make; make install"

@@ -1,0 +1,4 @@
+general: {
+  # 媒体文件存放起始目录
+  media_root = "/home/janus/media"
+}

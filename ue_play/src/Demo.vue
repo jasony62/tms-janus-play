@@ -25,8 +25,8 @@ export default {
   data() {
     return {
       server,
-      audioFile: '/home/janus/media/sine-8k-10s.mp3',
-      mp4File: '/home/janus/media/sine-8k-testsrc2-baseline31-gop10-10s.mp4',
+      audioFile: 'sine-8k-10s.mp3',
+      mp4File: 'sine-8k-testsrc2-baseline31-gop10-10s.mp4',
     }
   },
   components: { TmsJanusAudio, TmsJanusMp4 },

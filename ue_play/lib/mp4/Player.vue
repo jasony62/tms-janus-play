@@ -20,38 +20,18 @@
 </template>
 
 <script>
-import { PlayMp4 } from './tms_play_mp4'
+import { TmsJanusPlay } from '../tms_janus_play'
+import { PlayVueMixin } from '../tms_janus_play_vue'
+
+const PLUGIN_NAME = 'janus.plugin.tms.mp4'
 
 export default {
   name: 'TmsJanusMp4',
-  props: { server: { type: String }, file: { type: String } },
-  data() {
-    return {
-      play: { state: { webrtcUp: false } },
-    }
-  },
+  mixins: [PlayVueMixin],
   methods: {
-    openWebrtc() {
-      this.play.open(this.server)
-    },
-    closeWebrtc() {
-      this.play.close()
-    },
-    playing() {
-      console.debug(' ::: Remote stream is playing :::')
-    },
-    playFile() {
-      this.play.play(this.file)
-    },
     pauseFile() {
       this.printScreen()
       this.play.pause()
-    },
-    resumeFile() {
-      this.play.resume()
-    },
-    stopFile() {
-      this.play.stop()
     },
     printScreen() {
       let elemVideo = document.querySelector('#remotevideo')
@@ -66,8 +46,9 @@ export default {
     },
   },
   mounted() {
-    this.play = new PlayMp4({
-      elemVideo: document.querySelector('#remotevideo'),
+    this.play = new TmsJanusPlay({
+      plugin: PLUGIN_NAME,
+      elemMedia: document.querySelector('#remotevideo'),
     })
   },
 }

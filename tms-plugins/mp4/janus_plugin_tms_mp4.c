@@ -1,5 +1,6 @@
 #include <jansson.h>
 
+#include <config.h>
 #include <plugins/plugin.h>
 
 #include <libavformat/avformat.h>
@@ -52,6 +53,10 @@ static janus_plugin janus_plugin_tms_mp4 =
             .hangup_media = janus_plugin_hangup_media_tms_mp4,
 
             .handle_message = janus_plugin_handle_message_tms_mp4, );
+
+/* Static configuration instance */
+static janus_config *config = NULL;
+static char *media_root = NULL; // 媒体文件存储位置
 
 /* 生成jsep offer sdp */
 static void tms_mp4_create_offer_sdp(char **sdp, gboolean doaudio, gboolean dovideo)
@@ -297,10 +302,14 @@ static void *tms_mp4_async_message_thread(void *data)
         if (!strcasecmp(request_text, "play.file"))
         {
           /* 指定要播放的文件 */
+          char fullpath[512]; // 要播放文件的完整路径
+          memset(fullpath, 9, 512);
           json_t *file = json_object_get(root, "file");
           const char *filename = json_string_value(file);
-          /* 检查文件是否存在 */
-          JANUS_LOG(LOG_VERB, "[PlayMp4] 准备播放文件%s\n", filename);
+          g_snprintf(fullpath, 512, "%s/%s", media_root, filename);
+
+          /* 应该检查文件是否存在！！！ */
+          JANUS_LOG(LOG_VERB, "[PlayMp4] 准备播放文件%s\n", fullpath);
 
           /* 要求播放指定的文件 */
           if (!session->ffmpeg)
@@ -322,7 +331,7 @@ static void *tms_mp4_async_message_thread(void *data)
             ffmpeg = session->ffmpeg;
             g_free(ffmpeg->filename);
           }
-          ffmpeg->filename = g_strdup(filename);
+          ffmpeg->filename = g_strdup(fullpath);
 
           /* 启用ffmpeg媒体播放线程 */
           GError *error = NULL;
@@ -416,6 +425,23 @@ janus_plugin *create(void)
 /* 初始化插件 */
 int janus_plugin_init_tms_mp4(janus_callbacks *callback, const char *config_path)
 {
+  /* Read configuration */
+  char filename[255];
+  g_snprintf(filename, 255, "%s/%s.jcfg", config_path, TMS_JANUS_PLUGIN_MP4_PACKAGE);
+  JANUS_LOG(LOG_VERB, "[PlayMp4] 配置文件：%s\n", filename);
+  config = janus_config_parse(filename);
+
+  /* Parse configuration */
+  if (config != NULL)
+  {
+    janus_config_print(config);
+    janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
+    janus_config_item *item_media_root = janus_config_get(config, config_general, janus_config_type_item, "media_root");
+    if (item_media_root != NULL && item_media_root->value != NULL)
+      media_root = g_strdup(item_media_root->value);
+    JANUS_LOG(LOG_VERB, "[PlayMp4] 媒体文件根目录：%s\n", media_root);
+  }
+
   g_atomic_int_set(&initialized, 1);
 
   /* 需要异步处理的消息 */
@@ -452,6 +478,10 @@ void janus_plugin_destroy_tms_mp4(void)
   messages = NULL;
 
   g_atomic_int_set(&initialized, 0);
+
+  /* 释放配置文件数据 */
+  janus_config_destroy(config);
+  g_free(media_root);
 
   JANUS_LOG(LOG_INFO, "销毁插件 %s\n", TMS_JANUS_PLUGIN_MP4_NAME);
 }

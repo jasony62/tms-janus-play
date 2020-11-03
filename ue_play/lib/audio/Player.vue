@@ -17,42 +17,18 @@
 </template>
 
 <script>
-import { PlayAudio } from './tms_play_audio'
+import { TmsJanusPlay } from '../tms_janus_play'
+import { PlayVueMixin } from '../tms_janus_play_vue'
+
+const PLUGIN_NAME = 'janus.plugin.tms.audio'
 
 export default {
   name: 'TmsJanusAudio',
-  props: { server: { type: String }, file: { type: String } },
-  data() {
-    return {
-      play: { state: { webrtcUp: false } },
-    }
-  },
-  methods: {
-    openWebrtc() {
-      this.play.open(this.server)
-    },
-    closeWebrtc() {
-      this.play.close()
-    },
-    playing() {
-      console.debug(' ::: Remote stream is playing :::')
-    },
-    playFile() {
-      this.play.play(this.file)
-    },
-    pauseFile() {
-      this.play.pause()
-    },
-    resumeFile() {
-      this.play.resume()
-    },
-    stopFile() {
-      this.play.stop()
-    },
-  },
+  mixins: [PlayVueMixin],
   mounted() {
-    this.play = new PlayAudio({
-      elemAudio: document.querySelector('#remoteaudio'),
+    this.play = new TmsJanusPlay({
+      plugin: PLUGIN_NAME,
+      elemMedia: document.querySelector('#remoteaudio'),
     })
   },
 }

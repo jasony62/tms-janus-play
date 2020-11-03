@@ -1,9 +1,7 @@
 /**
  * 自定义Janus插件：播放mp4
  */
-import Janus from '../janus.es'
-
-const PLUGIN_NAME = 'janus.plugin.tms.mp4'
+import Janus from './janus.es'
 
 /* 建立会话 */
 function createSession(server, myJanus) {
@@ -42,7 +40,7 @@ function attach(myJanus) {
   return new Promise((resolve) => {
     const opaqueId = 'dev-' + Janus.randomString(12)
     myJanus.janus.attach({
-      plugin: PLUGIN_NAME,
+      plugin: myJanus.plugin,
       opaqueId,
       success: (pluginHandle) => {
         myJanus.pluginHandle = pluginHandle
@@ -103,7 +101,7 @@ function hangupWebrtc(myJanus) {
 function onRemoteStream(stream) {
   Janus.debug(' ::: Got a remote stream :::')
   Janus.debug(stream)
-  Janus.attachMediaStream(this.elemVideo, stream)
+  Janus.attachMediaStream(this.elemMedia, stream)
 }
 
 function onPluginMessage(msg, remoteJsep) {
@@ -141,12 +139,13 @@ class MyJanusState {
   }
 }
 
-export class PlayMp4 {
-  constructor({ debug = 'all', elemVideo, onwebrtcstate = Janus.noop }) {
+export class TmsJanusPlay {
+  constructor({ plugin, debug = 'all', elemMedia, onwebrtcstate = Janus.noop }) {
+    this.plugin = plugin
     this.janus = null
     this.pluginHandle = null
     this.onmessage = onPluginMessage.bind(this)
-    this.elemVideo = elemVideo
+    this.elemMedia = elemMedia
     this.onremotestream = onRemoteStream.bind(this)
     this.onwebrtcstate = onwebrtcstate
     this.state = new MyJanusState()
