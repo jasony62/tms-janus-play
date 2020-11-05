@@ -24,14 +24,11 @@
 import { TmsJanusPlay } from '../tms_janus_play'
 import { PlayVueMixin } from '../tms_janus_play_vue'
 
-const PLUGIN_NAME = 'janus.plugin.tms.audio'
-
 export default {
   name: 'TmsJanusAudio',
   mixins: [PlayVueMixin],
   mounted() {
     this.play = new TmsJanusPlay({
-      plugin: PLUGIN_NAME,
       elemMedia: document.querySelector('#remoteaudio'),
     })
   },

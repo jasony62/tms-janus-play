@@ -1,5 +1,5 @@
-#ifndef TMS_STREAM_H
-#define TMS_STREAM_H
+#ifndef TMS_PLAY_STREAM_H
+#define TMS_PLAY_STREAM_H
 
 /* 记录输入媒体流相关数据 */
 typedef struct TmsInputStream

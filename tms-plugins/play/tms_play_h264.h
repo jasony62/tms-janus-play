@@ -1,8 +1,8 @@
-#ifndef TMS_H264_H
-#define TMS_H264_H
+#ifndef TMS_PLAY_H264_H
+#define TMS_PLAY_H264_H
 
-#include "tms_ffmpeg_mp4.h"
-#include "tms_ffmpeg_stream.h"
+#include "tms_play.h"
+#include "tms_play_stream.h"
 
 /**/
 typedef struct TmsVideoRtpContext

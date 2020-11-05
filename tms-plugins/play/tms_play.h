@@ -1,28 +1,34 @@
 #define H264_PAYLOAD_TYPE 96
 
-#ifndef TMS_FFMPEG_MP4_H
-#define TMS_FFMPEG_MP4_H
+#ifndef TMS_PLAY_H
+#define TMS_PLAY_H
 
 #include <rtp.h>
 
 /* 记录单次Webrtc连接播放的过程和状态 */
-typedef struct tms_mp4_ffmpeg
+typedef struct tms_play_ffmpeg
 {
+  /* 播放文件信息 */
   char *filename; // 要播放的文件
   janus_plugin_session *handle;
   janus_refcount ref;
   janus_mutex mutex;
+  /* 状态信息 */
   volatile gint webrtcup;  // Webrtc连接是否可用，只有可用时才可以播放，0：不可用，1：可用
   volatile gint playing;   // 播放状态，0：停止，1：播放，2：暂停
   volatile gint destroyed; // 如果session已不可用，ffmpeg应处于销毁状态
   /* 保留播放状态 */
   int nb_video_rtps; // 视频rtp包累计发送数量，解决多次播放，生成seq的问题
   int nb_audio_rtps; // 音频rtp包累计发送数量，解决多次播放，生成seq的问题
-} tms_mp4_ffmpeg;
+} tms_play_ffmpeg;
 
 /* 记录单次播放的过程和状态 */
 typedef struct TmsPlayContext
 {
+  /* 播放文件信息 */
+  int nb_streams;   // 包含的媒体流数量
+  gboolean doaudio; // 是否播放音频
+  gboolean dovideo; // 是否播放视频
   /* 时间 */
   int64_t start_time_us;     // 播放开始时间，微秒
   int64_t end_time_us;       // 播放结束时间，微秒
@@ -43,6 +49,6 @@ typedef struct TmsPlayContext
   janus_plugin_session *handle;
 } TmsPlayContext;
 
-int tms_ffmpeg_mp4_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_mp4_ffmpeg *ffmpeg);
+int tms_play_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_play_ffmpeg *ffmpeg);
 
 #endif

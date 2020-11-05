@@ -12,23 +12,28 @@
 #include <libavutil/timestamp.h>
 #include <libswresample/swresample.h>
 
-#include "tms_ffmpeg_audio.h"
-#include "tms_ffmpeg_pcma.h"
-#include "tms_ffmpeg_stream.h"
+#include "tms_play.h"
+#include "tms_play_h264.h"
+#include "tms_play_pcma.h"
+#include "tms_play_stream.h"
 
 /***********************************
- * 解析mp3和wav文件，通过janus进行转发
+ * 解析mp4，mp3，wav文件，通过janus进行转发
  * 
- * 输出pcma
+ * 输出h264和pcma
  * 支持播放控制，暂停，恢复，停止 
  ***********************************/
 /* 初始化播放器上下文对象 */
-static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session *handle, tms_audio_ffmpeg *ffmpeg, TmsPlayContext *play)
+static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session *handle, tms_play_ffmpeg *ffmpeg, TmsPlayContext *play)
 {
+  play->nb_streams = 0;
+  play->doaudio = FALSE;
+  play->dovideo = FALSE;
   play->start_time_us = av_gettime_relative(); // 单位是微秒
   play->end_time_us = 0;
   play->pause_duration_us = 0;
   play->nb_packets = 0;
+  play->nb_video_packets = 0;
   play->nb_audio_packets = 0;
   play->nb_audio_frames = 0;
   play->nb_pcma_frames = 0;
@@ -49,7 +54,7 @@ static void tms_free_input_streams(TmsInputStream **ists, int nb_streams)
   }
 }
 /* 打开指定的文件，获得媒体流信息 */
-static int tms_open_file(char *filename, AVFormatContext **ictx, Resampler *resampler, PCMAEnc *pcma_enc, TmsInputStream **ists, int *out_nb_streams)
+static int tms_open_file(char *filename, AVFormatContext **ictx, AVBSFContext **h264bsfc, Resampler *resampler, PCMAEnc *pcma_enc, TmsInputStream **ists, TmsPlayContext *play)
 {
   int ret = 0;
 
@@ -80,21 +85,30 @@ static int tms_open_file(char *filename, AVFormatContext **ictx, Resampler *resa
 
     ists[i] = ist;
 
-    if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
+    if (ist->codec->type == AVMEDIA_TYPE_VIDEO)
     {
-      if ((ret = tms_audio_init_pcma_encoder(pcma_enc)) < 0)
+      const AVBitStreamFilter *filter = av_bsf_get_by_name("h264_mp4toannexb");
+      ret = av_bsf_alloc(filter, h264bsfc);
+      avcodec_parameters_copy((*h264bsfc)->par_in, ist->st->codecpar);
+      av_bsf_init(*h264bsfc);
+      play->dovideo = TRUE;
+    }
+    else if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
+    {
+      if ((ret = tms_init_pcma_encoder(pcma_enc)) < 0)
       {
         return -1;
       }
       /* 设置重采样，将解码出的fltp采样格式，转换为s16采样格式 */
-      if ((ret = tms_audio_init_audio_resampler(ist->dec_ctx, pcma_enc->cctx, resampler)) < 0)
+      if ((ret = tms_init_audio_resampler(ist->dec_ctx, pcma_enc->cctx, resampler)) < 0)
       {
         return -1;
       }
+      play->doaudio = TRUE;
     }
   }
 
-  *out_nb_streams = nb_streams;
+  play->nb_streams = nb_streams;
 
   return 0;
 }
@@ -102,22 +116,17 @@ static int tms_open_file(char *filename, AVFormatContext **ictx, Resampler *resa
 /*************************************
  * 执行入口 
  *************************************/
-int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_audio_ffmpeg *ffmpeg)
+int tms_play_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_play_ffmpeg *ffmpeg)
 {
   int ret = 0;
 
-  TmsInputStream *ists[1]; // 记录媒体流信息
+  TmsInputStream *ists[2]; // 记录媒体流信息
   AVFormatContext *ictx = NULL;
+  AVBSFContext *h264bsfc; // mp4转h264，将sps和pps放到推送流中
 
   /* 音频重采样 */
   Resampler resampler = {.max_nb_samples = 0};
   PCMAEnc pcma_enc = {.nb_samples = 0};
-  int nb_streams = 0; // 媒体流的数
-
-  if ((ret = tms_open_file(ffmpeg->filename, &ictx, &resampler, &pcma_enc, ists, &nb_streams)) < 0)
-  {
-    goto clean;
-  }
 
   /* 初始化播放状态 */
   TmsPlayContext play;
@@ -126,9 +135,17 @@ int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle
     goto clean;
   }
 
+  if ((ret = tms_open_file(ffmpeg->filename, &ictx, &h264bsfc, &resampler, &pcma_enc, ists, &play)) < 0)
+  {
+    goto clean;
+  }
+
   /* 初始化音视频流rtp上下文 */
   TmsAudioRtpContext audio_rtp_ctx;
-  tms_audio_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
+  tms_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
+  TmsVideoRtpContext video_rtp_ctx;
+  uint8_t video_buf[1470];
+  tms_init_video_rtp_context(&video_rtp_ctx, video_buf, play.start_time_us);
 
   /* 解析文件开始播放 */
   AVPacket *pkt = av_packet_alloc(); // ffmpeg媒体包
@@ -172,9 +189,17 @@ int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle
      * 分别处理音视频包
      */
     TmsInputStream *ist = ists[pkt->stream_index];
-    if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
+    if (ist->codec->type == AVMEDIA_TYPE_VIDEO)
     {
-      if ((ret = tms_audio_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame, &audio_rtp_ctx)) < 0)
+      if ((ret = tms_handle_video_packet(&play, ist, pkt, h264bsfc, &video_rtp_ctx)) < 0)
+      {
+        av_packet_unref(pkt);
+        goto clean;
+      }
+    }
+    else if (ist->codec->type == AVMEDIA_TYPE_AUDIO)
+    {
+      if ((ret = tms_handle_audio_packet(&play, ist, &resampler, &pcma_enc, pkt, frame, &audio_rtp_ctx)) < 0)
       {
         av_packet_unref(pkt);
         goto clean;
@@ -185,13 +210,14 @@ int tms_ffmpeg_audio_main(janus_callbacks *gateway, janus_plugin_session *handle
   }
 
 end:
+  ffmpeg->nb_video_rtps += play.nb_video_rtps;
   ffmpeg->nb_audio_rtps += play.nb_audio_rtps;
   /* Log end */
-  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", ffmpeg->filename, play.nb_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
+  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP视频包，累计发送 %d 个视频RTP包，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", ffmpeg->filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_video_rtps, ffmpeg->nb_video_rtps, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
 
 clean:
-  if (nb_streams > 0)
-    tms_free_input_streams(ists, nb_streams);
+  if (play.nb_streams > 0)
+    tms_free_input_streams(ists, play.nb_streams);
 
   if (frame)
     av_frame_free(&frame);
@@ -199,13 +225,18 @@ clean:
   if (pkt)
     av_packet_free(&pkt);
 
-  if (resampler.swrctx)
-    swr_free(&resampler.swrctx);
+  if (play.dovideo)
+    if (h264bsfc)
+      av_bsf_free(&h264bsfc);
+
+  if (play.doaudio)
+    if (resampler.swrctx)
+      swr_free(&resampler.swrctx);
 
   if (ictx)
     avformat_close_input(&ictx);
 
-  JANUS_LOG(LOG_VERB, "退出PlayMp3\n");
+  JANUS_LOG(LOG_VERB, "退出TmsPlay\n");
 
   return 0;
 }

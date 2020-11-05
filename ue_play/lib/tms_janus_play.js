@@ -3,6 +3,8 @@
  */
 import Janus from './janus.es'
 
+const PLUGIN_NAME = 'janus.plugin.tms.play'
+
 /* 建立会话 */
 function createSession(server, myJanus) {
   let { channelState } = myJanus
@@ -168,8 +170,8 @@ class PlayState {
 }
 
 export class TmsJanusPlay {
-  constructor({ plugin, debug = 'all', elemMedia, onwebrtcstate = Janus.noop }) {
-    this.plugin = plugin
+  constructor({ debug = 'all', elemMedia, onwebrtcstate = Janus.noop }) {
+    this.plugin = PLUGIN_NAME
     this.janus = null
     this.pluginHandle = null
     this.onmessage = onPluginMessage.bind(this)

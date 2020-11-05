@@ -60,19 +60,23 @@ https://github.com/instrumentisto/coturn-docker-image
 
 > docker-compose -f docker-compose.9.yml -f docker-compose.override.yml up janus
 
-> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/mp4; make"
+> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/play; make"
 
-> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/mp4; make install"
+> docker exec -it tms-janus_0.9.1 bash -c "cd /usr/src/janus-plugins/play; make install"
 
-> docker exec -it tms-janus_0.9.1 bash -c "cd ../janus-plugins/mp4; make; make install"
+> docker exec -it tms-janus_0.9.1 bash -c "cd ../janus-plugins/play; make; make install"
 
 自定义插件复制到/usr/src/janus-plugins
 
 编译插件
 
+进入容器执行
+
 ./bootstrap && \
 ./configure --prefix=/opt/janus && \
 make && make install
+
+配置文件
 
 > 编译安装后要重启 janus。如果是 down，插件需要编译和安装。
 

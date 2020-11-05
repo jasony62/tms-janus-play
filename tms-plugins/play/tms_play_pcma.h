@@ -3,13 +3,13 @@
 #define ALAW_PAYLOAD_TYPE 8
 #define RTP_PCMA_TIME_BASE 8000 // RTP中pcma流的时间
 
-#ifndef TMS_PCMA_H
-#define TMS_PCMA_H
+#ifndef TMS_PLAY_PCMA_H
+#define TMS_PLAY_PCMA_H
 
 #include <rtp.h>
 
-#include "tms_ffmpeg_mp4.h"
-#include "tms_ffmpeg_stream.h"
+#include "tms_play.h"
+#include "tms_play_stream.h"
 /**
  * PCMA编码器 
  */
@@ -253,15 +253,29 @@ static void tms_dump_audio_frame(AVFrame *frame, TmsPlayContext *play)
   JANUS_LOG(LOG_VERB, "从音频包 #%d 中读取音频帧 #%d, format = %s , sample_rate = %d , channels = %d , nb_samples = %d, pts = %ld, best_effort_timestamp = %ld\n", play->nb_audio_packets, play->nb_audio_frames, frame_fmt, frame->sample_rate, frame->channels, frame->nb_samples, frame->pts, frame->best_effort_timestamp);
 }
 /* 添加音频帧发送延时 */
-static void tms_add_audio_frame_send_delay(AVFrame *frame, TmsPlayContext *play)
+static int tms_add_audio_frame_send_delay(AVFrame *frame, TmsPlayContext *play)
 {
-  int64_t pts = av_rescale(frame->pts, AV_TIME_BASE, frame->sample_rate);
-  int64_t elapse = av_gettime_relative() - play->start_time_us - play->pause_duration_us;
-  JANUS_LOG(LOG_VERB, "计算音频帧 #%d 发送延时 elapse = %ld pts = %ld delay = %ld\n", play->nb_audio_frames, elapse, pts, pts - elapse);
-  if (pts > elapse)
+  int duration;
+  if (play->nb_streams == 2)
   {
-    usleep(pts - elapse);
+    int64_t pts = av_rescale(frame->pts, AV_TIME_BASE, frame->sample_rate);
+    int64_t elapse = av_gettime_relative() - play->start_time_us - play->pause_duration_us;
+    JANUS_LOG(LOG_VERB, "计算音频帧 #%d 发送延时 elapse = %ld pts = %ld delay = %ld\n", play->nb_audio_frames, elapse, pts, pts - elapse);
+    duration = pts - elapse;
+    if (duration > 0)
+    {
+      usleep(duration);
+    }
   }
+  else
+  {
+    /* 添加时间间隔，微秒 */
+    duration = (int)(((float)frame->nb_samples / (float)frame->sample_rate) * 1000 * 1000);
+    JANUS_LOG(LOG_VERB, "添加延迟时间，控制速率 samples = %d, sample_rate = %d, duration = %d \n", frame->nb_samples, frame->sample_rate, duration);
+    usleep(duration);
+  }
+
+  return duration;
 }
 /**
  * 发送RTP包
