@@ -6,11 +6,17 @@ export const PlayVueMixin = {
     }
   },
   methods: {
-    openWebrtc() {
-      this.play.open(this.server)
+    connect() {
+      this.play.connect(this.server)
     },
-    closeWebrtc() {
-      this.play.close()
+    closeConn() {
+      this.play.closeConn()
+    },
+    createWebrtc() {
+      this.play.createWebrtc(this.server)
+    },
+    hangupWebrtc() {
+      this.play.hangupWebrtc()
     },
     playing() {
       console.debug(' ::: Remote stream is playing :::')
@@ -34,7 +40,7 @@ export const PlayVueMixin = {
   beforeDestroy() {
     if (this.play) {
       if (this.play.channelState.connected) {
-        this.closeWebrtc()
+        this.hangupWebrtc()
       }
     }
   },

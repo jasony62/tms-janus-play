@@ -89,14 +89,14 @@ function createWebrtc(myJanus) {
   })
 }
 /* 关闭WebRTC */
-// function hangupWebrtc(myJanus) {
-//   return new Promise((resolve) => {
-//     if (myJanus.pluginHandle) {
-//       myJanus.pluginHandle.hangup()
-//       resolve(true)
-//     } else resolve(false)
-//   })
-// }
+function hangupWebrtc(myJanus) {
+  return new Promise((resolve) => {
+    if (myJanus.pluginHandle) {
+      myJanus.pluginHandle.hangup()
+      resolve(true)
+    } else resolve(false)
+  })
+}
 
 function onRemoteStream(stream) {
   Janus.debug(' ::: Got a remote stream :::')
@@ -144,11 +144,13 @@ class ChannelState {
     this.connected = false
     this.attached = false
     this.webrtcUp = false
+    this.sending = false
   }
   reset() {
     this.connected = false
     this.attached = false
     this.webrtcUp = false
+    this.sending = false
   }
 }
 /**
@@ -187,40 +189,56 @@ export class TmsJanusPlay {
       },
     })
   }
+  get isConnEnable() {
+    return !this.channelState.attached && !this.channelState.sending
+  }
+  get isProbeEnable() {
+    return this.channelState.attached && !this.channelState.sending
+  }
+  get isCreateWebrtcEnable() {
+    return this.channelState.attached && this.isWebrtcUp === false
+  }
   get isWebrtcUp() {
     return this.channelState.webrtcUp
   }
-  get isPlayEnabled() {
-    return this.playState.state === 'ready'
+  get isPlayEnable() {
+    return this.isWebrtcUp && this.playState.state === 'ready'
   }
-  get isPauseEnabled() {
-    return this.playState.state === 'going'
+  get isPauseEnable() {
+    return this.isWebrtcUp && this.playState.state === 'going'
   }
-  get isResumeEnabled() {
-    return this.playState.state === 'paused'
+  get isResumeEnable() {
+    return this.isWebrtcUp && this.playState.state === 'paused'
   }
-  get isStopEnabled() {
-    return this.playState.state === 'going' || this.playState.state === 'paused'
+  get isStopEnable() {
+    return (this.isWebrtcUp && this.playState.state === 'going') || this.playState.state === 'paused'
   }
   reset() {
     this.channelState.reset()
     this.playState.reset()
   }
   /* 建立WebRTC媒体通道 */
-  open(server) {
+  connect(server) {
+    this.channelState.sending = true
     return createSession(server, this)
       .then(() => attach(this))
-      .then(() => createWebrtc(this))
+      .then(() => (this.channelState.sending = false))
   }
-  close() {
-    // return hangupWebrtc(this).then(() => {
-    //   // hangup没有回调函数，只能等待oncleanup事件
-    //   return detach(this).then(() => destroySession(this))
-    // })
+  closeConn() {
     // 不需要按建立的顺序逐步销毁会话
     return destroySession(this)
   }
+  createWebrtc() {
+    this.channelState.sending = true
+    this.channelState.webrtcUp = undefined
+    return createWebrtc(this).then(() => (this.channelState.sending = false))
+  }
+  hangupWebrtc() {
+    this.channelState.sending = true
+    return hangupWebrtc(this).then(() => (this.channelState.sending = false))
+  }
   probe(file) {
+    this.channelState.sending = true
     this.playState.file = file
     this.pluginHandle.send({
       message: {
@@ -234,6 +252,7 @@ export class TmsJanusPlay {
           this.playState.duration = rsp.duration
         } else if (rsp.code == 404) console.log('播放文件文件不存在', rsp)
         else console.log('无法处理播放文件', rsp)
+        this.channelState.sending = false
       },
     })
   }
