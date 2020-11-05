@@ -1,14 +1,18 @@
 <template>
   <div>
     <div>
-      <button @click="openWebrtc" :disabled="play.state.webrtcUp">打开通道</button>
-      <button @click="closeWebrtc" :disabled="!play.state.webrtcUp">关闭通道</button>
+      <button @click="openWebrtc" :disabled="play.isWebrtcUp">打开通道</button>
+      <button @click="closeWebrtc" :disabled="!play.isWebrtcUp">关闭通道</button>
     </div>
     <div>
-      <button @click="playFile">开始播放</button>
-      <button @click="pauseFile">暂停播放</button>
-      <button @click="resumeFile">恢复播放</button>
-      <button @click="stopFile">停止播放</button>
+      <button @click="probeFile" :disabled="!play.channelState.webrtcUp">获取文件信息</button>
+      <div>时长:{{play.playState.duration}}</div>
+    </div>
+    <div>
+      <button @click="playFile" :disabled="!play.isPlayEnabled">播放</button>
+      <button @click="pauseFile" :disabled="!play.isPauseEnabled">暂停</button>
+      <button @click="resumeFile" :disabled="!play.isResumeEnabled">恢复</button>
+      <button @click="stopFile" :disabled="!play.isStopEnabled">停止</button>
     </div>
     <div>
       <video id="remotevideo" width="320" height="240" autoplay playsinline @playing="playing" />

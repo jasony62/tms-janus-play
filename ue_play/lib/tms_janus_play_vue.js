@@ -2,7 +2,7 @@ export const PlayVueMixin = {
   props: { server: { type: String }, file: { type: String } },
   data() {
     return {
-      play: { state: { webrtcUp: false } },
+      play: { channelState: { webrtcUp: false }, playState: { duration: -1 } },
     }
   },
   methods: {
@@ -14,6 +14,9 @@ export const PlayVueMixin = {
     },
     playing() {
       console.debug(' ::: Remote stream is playing :::')
+    },
+    probeFile() {
+      this.play.probe(this.file)
     },
     playFile() {
       this.play.play(this.file)
@@ -30,7 +33,7 @@ export const PlayVueMixin = {
   },
   beforeDestroy() {
     if (this.play) {
-      if (this.play.state.webrtcUp) {
+      if (this.play.channelState.connected) {
         this.closeWebrtc()
       }
     }

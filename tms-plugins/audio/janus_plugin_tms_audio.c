@@ -102,7 +102,7 @@ static void tms_audio_ffmpeg_send_event(tms_audio_ffmpeg *ffmpeg, char *msg)
 {
   janus_plugin_session *handle = ffmpeg->handle;
   json_t *event = json_object();
-  json_object_set_new(event, "playaudio", json_string(msg));
+  json_object_set_new(event, "tms_play_event", json_string(msg));
   int ret = gateway->push_event(handle, &janus_plugin_tms_audio, NULL, event, NULL);
   if (ret < 0)
     JANUS_LOG(LOG_VERB, "[PlayAudio] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
@@ -120,7 +120,7 @@ static void *tms_audio_async_ffmpeg_thread(void *data)
   janus_mutex_lock(&ffmpeg->mutex);
   if (!g_atomic_int_get(&ffmpeg->destroyed))
   {
-    tms_audio_ffmpeg_send_event(ffmpeg, "exit.ffmpeg");
+    tms_audio_ffmpeg_send_event(ffmpeg, "exit.play");
   }
   janus_mutex_unlock(&ffmpeg->mutex);
 
@@ -325,7 +325,7 @@ static void *tms_audio_async_message_thread(void *data)
           {
             /* 通知启用了媒体播放线程 */
             json_t *event = json_object();
-            json_object_set_new(event, "playaudio", json_string("launch.ffmpeg"));
+            json_object_set_new(event, "tms_play_event", json_string("launch.play"));
             int ret = gateway->push_event(msg->handle, &janus_plugin_tms_audio, msg->transaction, event, NULL);
             if (ret < 0)
               JANUS_LOG(LOG_VERB, "[PlayAudio] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
@@ -338,6 +338,12 @@ static void *tms_audio_async_message_thread(void *data)
         else if (!strcasecmp(request_text, "resume.file"))
         {
           g_atomic_int_set(&ffmpeg->playing, 1);
+          /* 通知恢复了媒体播放线程 */
+          json_t *event = json_object();
+          json_object_set_new(event, "tms_play_event", json_string("resume.play"));
+          int ret = gateway->push_event(msg->handle, &janus_plugin_tms_audio, msg->transaction, event, NULL);
+          if (ret < 0)
+            JANUS_LOG(LOG_VERB, "[PlayAudio] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
         }
         else if (!strcasecmp(request_text, "stop.file"))
         {
@@ -545,8 +551,54 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_audio(janus_plugin_s
   /* 测试用 */
   if (!strcasecmp(request_text, "ping"))
   {
-    json_t *response = json_object();
+    response = json_object();
     json_object_set_new(response, "msg", json_string("pong"));
+
+    return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
+  }
+  else if (!strcasecmp(request_text, "probe.file"))
+  {
+    /* 指定要播放的文件 */
+    char fullpath[512]; // 要播放文件的完整路径
+    memset(fullpath, 9, 512);
+    json_t *file = json_object_get(root, "file");
+    const char *filename = json_string_value(file);
+    g_snprintf(fullpath, 512, "%s/%s", media_root, filename);
+
+    /* 应该检查文件是否存在！！！ */
+    int ret;
+    AVFormatContext *ictx = NULL;
+    /* 打开指定的媒体文件 */
+    if ((ret = avformat_open_input(&ictx, fullpath, NULL, NULL)) < 0)
+    {
+      JANUS_LOG(LOG_VERB, "[PlayAudio] 无法打开媒体文件 %s\n", fullpath);
+
+      response = json_object();
+      json_object_set_new(response, "code", json_integer(404));
+      json_object_set_new(response, "path", json_string(fullpath));
+
+      return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
+    }
+
+    /* 获得指定的视频文件的信息 */
+    if ((ret = avformat_find_stream_info(ictx, NULL)) < 0)
+    {
+      JANUS_LOG(LOG_VERB, "[PlayAudio] 无法获取文件媒体流信息 %s\n", fullpath);
+
+      response = json_object();
+      json_object_set_new(response, "code", json_integer(400));
+      json_object_set_new(response, "path", json_string(fullpath));
+      json_object_set_new(response, "reason", json_string("无法获取文件媒体流信息"));
+
+      return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
+    }
+
+    JANUS_LOG(LOG_VERB, "[PlayAudio] 媒体文件 %s nb_streams = %d , duration = %ld\n", fullpath, ictx->nb_streams, ictx->duration);
+
+    response = json_object();
+    json_object_set_new(response, "code", json_integer(0));
+    json_object_set_new(response, "streams", json_integer(ictx->nb_streams));
+    json_object_set_new(response, "duration", json_integer(ictx->duration));
 
     return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
   }
@@ -559,10 +611,26 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_audio(janus_plugin_s
   /* 放入队列异步处理的消息 */
   if (!strcasecmp(request_text, "request.offer") || NULL != strstr(request_text, ".file"))
   {
-    tms_audio_session *session = (tms_audio_session *)handle->plugin_handle;
-    if (NULL != strstr(request_text, ".file") && !session->webrtcup)
+    if (NULL != strstr(request_text, ".file"))
     {
-      return janus_plugin_result_new(JANUS_PLUGIN_ERROR, "Webrtc连接未建立，不能执行指定操作", NULL);
+      /* 检查指定的播放文件 */
+      if (!strcasecmp(request_text, "play.file"))
+      {
+        json_t *file = json_object_get(root, "file");
+        if (NULL == file)
+        {
+          response = json_object();
+          json_object_set_new(response, "code", json_integer(400));
+          json_object_set_new(response, "reason", json_string("没有指定要播放的文件"));
+          return janus_plugin_result_new(JANUS_PLUGIN_OK, NULL, response);
+        }
+      }
+      /* 检查通道连接情况 */
+      tms_audio_session *session = (tms_audio_session *)handle->plugin_handle;
+      if (!session->webrtcup)
+      {
+        return janus_plugin_result_new(JANUS_PLUGIN_ERROR, "Webrtc连接未建立，不能执行指定操作", NULL);
+      }
     }
 
     tms_audio_message *msg = g_malloc(sizeof(tms_audio_message));

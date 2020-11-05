@@ -123,7 +123,7 @@ static void tms_mp4_ffmpeg_send_event(tms_mp4_ffmpeg *ffmpeg, char *msg)
 {
   janus_plugin_session *handle = ffmpeg->handle;
   json_t *event = json_object();
-  json_object_set_new(event, "playmp4", json_string(msg));
+  json_object_set_new(event, "tms_play_event", json_string(msg));
   int ret = gateway->push_event(handle, &janus_plugin_tms_mp4, NULL, event, NULL);
   if (ret < 0)
     JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
@@ -141,7 +141,7 @@ static void *tms_mp4_async_ffmpeg_thread(void *data)
   janus_mutex_lock(&ffmpeg->mutex);
   if (!g_atomic_int_get(&ffmpeg->destroyed))
   {
-    tms_mp4_ffmpeg_send_event(ffmpeg, "exit.ffmpeg");
+    tms_mp4_ffmpeg_send_event(ffmpeg, "exit.play");
   }
   janus_mutex_unlock(&ffmpeg->mutex);
 
@@ -346,7 +346,7 @@ static void *tms_mp4_async_message_thread(void *data)
           {
             /* 通知启用了媒体播放线程 */
             json_t *event = json_object();
-            json_object_set_new(event, "playmp4", json_string("launch.ffmpeg"));
+            json_object_set_new(event, "tms_play_event", json_string("launch.play"));
             int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, NULL);
             if (ret < 0)
               JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
@@ -359,6 +359,12 @@ static void *tms_mp4_async_message_thread(void *data)
         else if (!strcasecmp(request_text, "resume.file"))
         {
           g_atomic_int_set(&ffmpeg->playing, 1);
+          /* 通知恢复了媒体播放线程 */
+          json_t *event = json_object();
+          json_object_set_new(event, "tms_play_event", json_string("resume.play"));
+          int ret = gateway->push_event(msg->handle, &janus_plugin_tms_mp4, msg->transaction, event, NULL);
+          if (ret < 0)
+            JANUS_LOG(LOG_VERB, "[PlayMp4] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
         }
         else if (!strcasecmp(request_text, "stop.file"))
         {
