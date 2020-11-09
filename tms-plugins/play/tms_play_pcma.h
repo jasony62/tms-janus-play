@@ -55,7 +55,7 @@ int tms_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timest
    * base_timestamp是个全局的时间点，rtp对应的是一个文件的播放，需要把文件的起点和全局的起点对齐 
    */
   rtp_ctx->base_timestamp = (av_gettime_relative() - base_timestamp) / 1000 * 8; // pcma/8000
-  rtp_ctx->cur_timestamp = base_timestamp;
+  rtp_ctx->cur_timestamp = rtp_ctx->base_timestamp;
 
   rtp_ctx->payload_type = ALAW_PAYLOAD_TYPE;
 
@@ -315,7 +315,7 @@ static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsA
 
   g_free(buffer);
 
-  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%d\n", play->nb_audio_rtps, seq, rtp_ctx->cur_timestamp);
+  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%d nb_samples=%d\n", play->nb_audio_rtps, seq, rtp_ctx->cur_timestamp, nb_samples);
 
   return 0;
 }
