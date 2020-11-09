@@ -34,6 +34,7 @@ static int tms_init_play_context(janus_callbacks *gateway, janus_plugin_session 
   play->pause_duration_us = 0;
   play->nb_packets = 0;
   play->nb_video_packets = 0;
+  play->nb_before_video_rtps = ffmpeg->nb_video_rtps;
   play->nb_audio_packets = 0;
   play->nb_audio_frames = 0;
   play->nb_pcma_frames = 0;
@@ -142,10 +143,10 @@ int tms_play_main(janus_callbacks *gateway, janus_plugin_session *handle, tms_pl
 
   /* 初始化音视频流rtp上下文 */
   TmsAudioRtpContext audio_rtp_ctx;
-  tms_init_audio_rtp_context(&audio_rtp_ctx, play.start_time_us);
+  tms_init_audio_rtp_context(&audio_rtp_ctx, ffmpeg->base_timestamp);
   TmsVideoRtpContext video_rtp_ctx;
   uint8_t video_buf[1470];
-  tms_init_video_rtp_context(&video_rtp_ctx, video_buf, play.start_time_us);
+  tms_init_video_rtp_context(&video_rtp_ctx, video_buf, ffmpeg->base_timestamp);
 
   /* 解析文件开始播放 */
   AVPacket *pkt = av_packet_alloc(); // ffmpeg媒体包
@@ -213,7 +214,7 @@ end:
   ffmpeg->nb_video_rtps += play.nb_video_rtps;
   ffmpeg->nb_audio_rtps += play.nb_audio_rtps;
   /* Log end */
-  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，用时：%ld微秒，本次发送 %d 个RTP视频包，累计发送 %d 个视频RTP包，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", ffmpeg->filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.end_time_us - play.start_time_us, play.nb_video_rtps, ffmpeg->nb_video_rtps, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
+  JANUS_LOG(LOG_VERB, "完成文件播放 %s，共读取 %d 个包，包含：%d 个视频包，%d 个音频包，%d 个音频帧，转换 %d 个PCMA音频帧，开始时间：%ld，结束时间：%ld，用时：%ld微秒，本次发送 %d 个RTP视频包，累计发送 %d 个视频RTP包，本次发送 %d 个RTP音频包，累计发送 %d 个音频RTP包\n", ffmpeg->filename, play.nb_packets, play.nb_video_packets, play.nb_audio_packets, play.nb_audio_frames, play.nb_pcma_frames, play.start_time_us, play.end_time_us, play.end_time_us - play.start_time_us, play.nb_video_rtps, ffmpeg->nb_video_rtps, play.nb_audio_rtps, ffmpeg->nb_audio_rtps);
 
 clean:
   if (play.nb_streams > 0)

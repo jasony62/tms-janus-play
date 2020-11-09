@@ -26,11 +26,11 @@
 
 <script>
 import { TmsJanusPlay } from '../tms_janus_play'
-import { PlayVueMixin } from '../tms_janus_play_vue'
+import { TmsJanusPlayVueMixin } from '../tms_janus_play_vue'
 
 export default {
   name: 'TmsJanusAudio',
-  mixins: [PlayVueMixin],
+  mixins: [TmsJanusPlayVueMixin],
   mounted() {
     this.play = new TmsJanusPlay({
       elemMedia: document.querySelector('#remoteaudio'),

@@ -1,4 +1,4 @@
-export const PlayVueMixin = {
+export const TmsJanusPlayVueMixin = {
   props: { server: { type: String }, file: { type: String } },
   data() {
     return {

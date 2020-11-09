@@ -36,9 +36,8 @@ typedef struct Resampler
  */
 typedef struct TmsAudioRtpContext
 {
-  uint32_t timestamp;
   uint32_t base_timestamp;
-  uint32_t cur_timestamp;
+  uint32_t cur_timestamp; //
   int8_t payload_type;
 } TmsAudioRtpContext;
 
@@ -51,9 +50,12 @@ int tms_init_audio_rtp_context(TmsAudioRtpContext *audio_rtp_ctx, uint32_t base_
 /* 初始化音频rtp发送上下文 */
 int tms_init_audio_rtp_context(TmsAudioRtpContext *rtp_ctx, uint32_t base_timestamp)
 {
-  rtp_ctx->base_timestamp = base_timestamp;
+  // rtp_ctx->base_timestamp = base_timestamp;
+  /**
+   * base_timestamp是个全局的时间点，rtp对应的是一个文件的播放，需要把文件的起点和全局的起点对齐 
+   */
+  rtp_ctx->base_timestamp = (av_gettime_relative() - base_timestamp) / 1000 * 8; // pcma/8000
   rtp_ctx->cur_timestamp = base_timestamp;
-  rtp_ctx->timestamp = 0;
 
   rtp_ctx->payload_type = ALAW_PAYLOAD_TYPE;
 
@@ -289,7 +291,6 @@ static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsA
 
   uint8_t *output_data = encoder->packet.data;
   int nb_samples = encoder->nb_samples; // 每个采样1个字节
-  rtp_ctx->timestamp = rtp_ctx->cur_timestamp;
   int16_t seq = play->nb_before_audio_rtps + play->nb_audio_rtps + 1;
 
   char *buffer = g_malloc0(1500); // 1个包最大的采样数是多少？
@@ -300,7 +301,7 @@ static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsA
   header->markerbit = 1;
   header->type = rtp_ctx->payload_type;
   header->seq_number = htons(seq);
-  header->timestamp = htonl(rtp_ctx->timestamp);
+  header->timestamp = htonl(rtp_ctx->cur_timestamp);
   header->ssrc = htonl(1); /* The gateway will fix this anyway */
 
   memcpy(buffer + RTP_HEADER_SIZE, output_data, nb_samples);
@@ -314,7 +315,7 @@ static int tms_rtp_send_audio_frame(PCMAEnc *encoder, TmsPlayContext *play, TmsA
 
   g_free(buffer);
 
-  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%d\n", play->nb_audio_rtps, seq, rtp_ctx->timestamp);
+  JANUS_LOG(LOG_VERB, "完成 #%d 个音频RTP包发送 seq=%d timestamp=%d\n", play->nb_audio_rtps, seq, rtp_ctx->cur_timestamp);
 
   return 0;
 }

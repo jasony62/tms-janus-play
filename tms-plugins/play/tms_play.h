@@ -14,6 +14,7 @@ typedef struct tms_play_ffmpeg
   janus_refcount ref;
   janus_mutex mutex;
   /* 状态信息 */
+  int64_t base_timestamp;
   volatile gint webrtcup;  // Webrtc连接是否可用，只有可用时才可以播放，0：不可用，1：可用
   volatile gint playing;   // 播放状态，0：停止，1：播放，2：暂停
   volatile gint destroyed; // 如果session已不可用，ffmpeg应处于销毁状态

@@ -13,15 +13,15 @@ RUN cnpm i
 # 生成.env文件
 ARG vue_app_title
 ARG vue_app_base_url
-ARG vue_app_janus_address
-ARG vue_app_janus_http_port
-ARG vue_app_janus_https_port
+ARG vue_app_tms_janus_address
+ARG vue_app_tms_janus_http_port
+ARG vue_app_tms_janus_https_port
 
 RUN echo VUE_APP_TITLE=$vue_app_title > .env && \
   echo VUE_APP_BASE_URL=$vue_app_base_url >> .env && \
-  echo VUE_APP_JANUS_ADDRESS=$vue_app_janus_address >> .env && \
-  echo VUE_APP_JANUS_HTTP_PORT=$vue_app_janus_http_port >> .env && \
-  echo VUE_APP_JANUS_HTTPS_PORT=$vue_app_janus_https_port >> .env
+  echo VUE_APP_TMS_JANUS_ADDRESS=$vue_app_tms_janus_address >> .env && \
+  echo VUE_APP_TMS_JANUS_HTTP_PORT=$vue_app_tms_janus_http_port >> .env && \
+  echo VUE_APP_TMS_JANUS_HTTPS_PORT=$vue_app_tms_janus_https_port >> .env
 
 # 构建代码
 COPY . . 

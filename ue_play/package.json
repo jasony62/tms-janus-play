@@ -1,20 +1,19 @@
 {
-  "name": "ue_play",
-  "version": "0.1.0",
-  "private": true,
+  "name": "tms-janus-play",
+  "description": "Tms-Janus媒体服务器播放文件客户端",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },
-  "dependencies": {
-    "core-js": "^3.6.4",
-    "install": "^0.13.0",
-    "npm": "^6.14.5",
-    "query-string": "^6.12.1",
-    "socket.io-client": "^2.3.0",
-    "tms-vue": "^0.0.8",
-    "vue": "^2.6.11"
+  "peerDependencies": {
+    "vue": "^2.6.11",
+    "tms-vue": "^0.0.9"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^4.2.0",

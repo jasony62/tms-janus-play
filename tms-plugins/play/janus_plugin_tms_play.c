@@ -187,6 +187,7 @@ typedef struct tms_play_session
   janus_refcount ref;
   tms_play_ffmpeg *ffmpeg;
   volatile gint webrtcup;
+  int64_t create_time_us; // 会话创建时间，单位：微秒
 } tms_play_session;
 /**
  * 释放会话
@@ -320,6 +321,7 @@ static void *tms_play_async_message_thread(void *data)
             ffmpeg->playing = 1;
             ffmpeg->destroyed = 0;
             ffmpeg->nb_audio_rtps = 0;
+            ffmpeg->base_timestamp = session->create_time_us; // 在一次会话中，为了支持多次播放，采用会话的创建时间作为媒体RTP时间戳的基础时间
             session->ffmpeg = ffmpeg;
 
             janus_mutex_init(&ffmpeg->mutex);
@@ -505,6 +507,7 @@ void janus_plugin_create_session_tms_play(janus_plugin_session *handle, int *err
   session->handle = handle;
   session->webrtcup = 0;
   handle->plugin_handle = session;
+  session->create_time_us = av_gettime_relative();
 }
 /* 必须有，怎么用？返回json对象，记录和session关联的业务信息 */
 json_t *janus_plugin_query_session_tms_play(janus_plugin_session *handle)

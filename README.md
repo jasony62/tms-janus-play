@@ -131,6 +131,12 @@ Janus-gateway 是开源的 WebRTC 服务器。
 | going  | 播放中。播放结束后回到`ready`状态。  |     |
 | paused | 播放暂停。                           |     |
 
+需要执行
+
+> cnpm i vue
+
+> cnpm i tms-vue@0.0.9
+
 # ue-demo
 
 janus-gateway 自带的演示程序。

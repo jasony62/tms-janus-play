@@ -29,11 +29,11 @@
 
 <script>
 import { TmsJanusPlay } from '../tms_janus_play'
-import { PlayVueMixin } from '../tms_janus_play_vue'
+import { TmsJanusPlayVueMixin } from '../tms_janus_play_vue'
 
 export default {
   name: 'TmsJanusMp4',
-  mixins: [PlayVueMixin],
+  mixins: [TmsJanusPlayVueMixin],
   methods: {
     pauseFile() {
       this.printScreen()

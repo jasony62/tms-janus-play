@@ -32,7 +32,11 @@ int tms_init_video_rtp_context(TmsVideoRtpContext *rtp_ctx, uint8_t *video_buf, 
   rtp_ctx->flags = 0;
 
   rtp_ctx->cur_timestamp = 0;
-  rtp_ctx->base_timestamp = base_timestamp;
+  // rtp_ctx->base_timestamp = base_timestamp;
+  /**
+   * base_timestamp是个全局的时间点，rtp对应的是一个文件的播放，需要把文件的起点和全局的起点对齐 
+   */
+  rtp_ctx->base_timestamp = (av_gettime_relative() - base_timestamp) / 1000 * 90; // h264/90000
 
   rtp_ctx->payload_type = H264_PAYLOAD_TYPE;
 
@@ -290,12 +294,12 @@ int tms_handle_video_packet(TmsPlayContext *play, TmsInputStream *ist, AVPacket 
   }
 
   /* 添加发送间隔 */
-  int64_t dts_us = ist->dts;
+  int64_t dts_us = ist->dts; // 单位微秒
   int64_t elapse_us = av_gettime_relative() - play->start_time_us - play->pause_duration_us;
   if (dts_us > elapse_us)
     usleep(dts_us - elapse_us);
 
-  ist->next_dts += av_rescale_q(pkt->duration, ist->st->time_base, AV_TIME_BASE_Q);
+  ist->next_dts += av_rescale_q(pkt->duration, ist->st->time_base, AV_TIME_BASE_Q); // 通过帧的播放时长，计算dts（相对于文件起始时间），单位微秒
 
   /* 计算时间戳 */
   int64_t video_ts = dts_us; // 微秒
