@@ -102,6 +102,8 @@ function onRemoteStream(stream) {
   Janus.debug(' ::: Got a remote stream :::')
   Janus.debug(stream)
   Janus.attachMediaStream(this.elemMedia, stream)
+  if (this.playState.state === 'paused' && this.onmute) this.onmute()
+  else if (this.playState.state === 'going' && this.onunmute) this.onunmute()
 }
 
 function onPluginMessage(msg, remoteJsep) {
@@ -172,7 +174,7 @@ class PlayState {
 }
 
 export class TmsJanusPlay {
-  constructor({ debug = 'all', elemMedia, onwebrtcstate = Janus.noop }) {
+  constructor({ debug = 'all', elemMedia, onmute = Janus.noop, onunmute = Janus.noop, onwebrtcstate = Janus.noop }) {
     this.plugin = PLUGIN_NAME
     this.janus = null
     this.pluginHandle = null
@@ -182,6 +184,8 @@ export class TmsJanusPlay {
     this.onwebrtcstate = onwebrtcstate
     this.channelState = new ChannelState()
     this.playState = new PlayState()
+    this.onmute = onmute.bind(this)
+    this.onunmute = onunmute.bind(this)
     Janus.init({
       debug,
       callback: () => {

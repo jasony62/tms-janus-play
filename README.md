@@ -149,6 +149,8 @@ janus-gateway 自带的演示程序。
 
 mp4
 
+> ffmpeg -t 0:3.40 -i digit-4_14s.wav -t 0:3.40 -i testsrc2-baseline31-gop10-3_80s.h264 -ar 8000 -c:a aac -c:v libx264 -profile:v baseline -level 3.1 -g 10 digit_8k_testsrc2-baseline31-gop10-3_40s.mp4
+
 ## player
 
 在浏览器中打开：https://yourdomain:8443/player

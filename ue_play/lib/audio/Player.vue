@@ -19,7 +19,7 @@
       <button @click="stopFile" :disabled="!play.isStopEnable">停止</button>
     </div>
     <div>
-      <audio id="remoteaudio" autoplay playsinline @playing="playing" />
+      <audio id="remoteaudio" autoplay playsinline />
     </div>
   </div>
 </template>

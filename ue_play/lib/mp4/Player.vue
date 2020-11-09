@@ -18,11 +18,8 @@
       <button @click="resumeFile" :disabled="!play.isResumeEnable">恢复</button>
       <button @click="stopFile" :disabled="!play.isStopEnable">停止</button>
     </div>
-    <div>
-      <video id="remotevideo" width="320" height="240" autoplay playsinline @playing="playing" />
-    </div>
-    <div>
-      <img id="videoimage" width="320" height="240">
+    <div class="video-box">
+      <video width="320" height="240" autoplay playsinline />
     </div>
   </div>
 </template>
@@ -40,21 +37,41 @@ export default {
       this.play.pause()
     },
     printScreen() {
-      let elemVideo = document.querySelector('#remotevideo')
+      let elemVideo = document.querySelector('.video-box video')
       let canvas = document.createElement('canvas')
       canvas.width = elemVideo.videoWidth
       canvas.height = elemVideo.videoHeight
       canvas
         .getContext('2d')
         .drawImage(elemVideo, 0, 0, canvas.width, canvas.height)
-      let elemImg = document.querySelector('#videoimage')
+      let elemImg = document.createElement('img')
       elemImg.src = canvas.toDataURL('image/png')
+      document.querySelector('.video-box').appendChild(elemImg)
     },
   },
   mounted() {
     this.play = new TmsJanusPlay({
-      elemMedia: document.querySelector('#remotevideo'),
+      elemMedia: document.querySelector('.video-box video'),
+      onunmute: function () {
+        let elemImg = document.querySelector('.video-box img')
+        if (elemImg) document.querySelector('.video-box').removeChild(elemImg)
+      },
     })
   },
 }
 </script>
+<style>
+.video-box {
+  position: relative;
+}
+.video-box video {
+  border: 1px solid #666;
+}
+.video-box img {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  right: 1px;
+}
+</style>

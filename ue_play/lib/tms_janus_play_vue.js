@@ -18,9 +18,6 @@ export const TmsJanusPlayVueMixin = {
     hangupWebrtc() {
       this.play.hangupWebrtc()
     },
-    playing() {
-      console.debug(' ::: Remote stream is playing :::')
-    },
     probeFile() {
       this.play.probe(this.file)
     },
