@@ -5,21 +5,21 @@
       <button @click="closeConn" :disabled="play.isConnEnable">关闭通道</button>
     </div>
     <div>
-      <button @click="probeFile" :disabled="!play.isProbeEnable">获取文件信息</button>
-      <div>时长:{{play.playState.duration}}</div>
+      <button @click="probe" :disabled="!play.isProbeEnable">获取文件信息</button>
+      <span>时长:{{play.playState.duration}}</span>
     </div>
     <div>
       <button @click="createWebrtc" :disabled="!play.isCreateWebrtcEnable">打开WebRTC</button>
       <button @click="hangupWebrtc" :disabled="play.isWebrtcUp!==true">关闭WebRTC</button>
     </div>
-    <div>
-      <button @click="playFile" :disabled="!play.isPlayEnable">播放</button>
-      <button @click="pauseFile" :disabled="!play.isPauseEnable">暂停</button>
-      <button @click="resumeFile" :disabled="!play.isResumeEnable">恢复</button>
-      <button @click="stopFile" :disabled="!play.isStopEnable">停止</button>
-    </div>
-    <div class="video-box">
-      <video width="320" height="240" autoplay playsinline />
+    <div class='tms-video-box'>
+      <div class="tms-video-screen">
+        <video width="320" height="240" autoplay playsinline />
+      </div>
+      <div>
+        <button @click="control" :disabled="!play.isControlEnable">{{runActionLabel}}</button>
+        <button @click="stop" :disabled="!play.isStopEnable">停止</button>
+      </div>
     </div>
   </div>
 </template>
@@ -32,12 +32,12 @@ export default {
   name: 'TmsJanusMp4',
   mixins: [TmsJanusPlayVueMixin],
   methods: {
-    pauseFile() {
-      this.printScreen()
-      this.play.pause()
+    control() {
+      if (this.play.playState.state === 'going') this.printScreen()
+      this.play.control()
     },
     printScreen() {
-      let elemVideo = document.querySelector('.video-box video')
+      let elemVideo = document.querySelector('.tms-video-screen video')
       let canvas = document.createElement('canvas')
       canvas.width = elemVideo.videoWidth
       canvas.height = elemVideo.videoHeight
@@ -46,28 +46,29 @@ export default {
         .drawImage(elemVideo, 0, 0, canvas.width, canvas.height)
       let elemImg = document.createElement('img')
       elemImg.src = canvas.toDataURL('image/png')
-      document.querySelector('.video-box').appendChild(elemImg)
+      document.querySelector('.tms-video-screen').appendChild(elemImg)
     },
   },
   mounted() {
     this.play = new TmsJanusPlay({
-      elemMedia: document.querySelector('.video-box video'),
-      onunmute: function () {
-        let elemImg = document.querySelector('.video-box img')
-        if (elemImg) document.querySelector('.video-box').removeChild(elemImg)
+      elemMedia: document.querySelector('.tms-video-screen video'),
+      onVideoUnmute: function () {
+        let elemImg = document.querySelector('.tms-video-screen img')
+        if (elemImg)
+          document.querySelector('.tms-video-screen').removeChild(elemImg)
       },
     })
   },
 }
 </script>
 <style>
-.video-box {
+.tms-video-screen {
   position: relative;
 }
-.video-box video {
+.tms-video-screen video {
   border: 1px solid #666;
 }
-.video-box img {
+.tms-video-screen img {
   position: absolute;
   top: 1px;
   bottom: 1px;

@@ -177,6 +177,33 @@ static void tms_play_ffmpeg_ref_free(const janus_refcount *ffmpeg_ref)
 
   JANUS_LOG(LOG_VERB, "[TmsPlay] 完成释放ffmpeg\n");
 }
+/* 创建tms_play_ffmpeg实例 */
+static int tms_play_ffmpeg_create(tms_play_ffmpeg **out_ffmpeg, janus_plugin_session *handle, const char *filename, int64_t base_timestamp)
+{
+  /* 要求播放指定的文件 */
+  char fullpath[512]; // 要播放文件的完整路径
+  memset(fullpath, 9, 512);
+  g_snprintf(fullpath, 512, "%s/%s", media_root, filename);
+  /* 是否要检查文件是否存在？ */
+
+  tms_play_ffmpeg *ffmpeg = NULL;
+  ffmpeg = g_malloc0(sizeof(tms_play_ffmpeg));
+  ffmpeg->handle = handle;
+  ffmpeg->webrtcup = 1;
+  ffmpeg->playing = 1;
+  ffmpeg->destroyed = 0;
+  ffmpeg->nb_audio_rtps = 0;
+  ffmpeg->nb_video_rtps = 0;
+  ffmpeg->base_timestamp = base_timestamp; // 在一次会话中，为了支持多次播放，采用会话的创建时间作为媒体RTP时间戳的基础时间
+  ffmpeg->filename = g_strdup(fullpath);
+
+  janus_mutex_init(&ffmpeg->mutex);
+  janus_refcount_init(&ffmpeg->ref, tms_play_ffmpeg_ref_free);
+
+  *out_ffmpeg = ffmpeg;
+
+  return 0;
+}
 
 /***********************************
  * 插件会话 
@@ -297,51 +324,53 @@ static void *tms_play_async_message_thread(void *data)
     else if (g_atomic_int_get(&session->webrtcup))
     {
       /* Webrtc连接已经建立，可以控制媒体播放 */
-      if (NULL != strstr(request_text, ".file"))
+      tms_play_ffmpeg *ffmpeg = session->ffmpeg;
+      if (!strcasecmp(request_text, "ctrl.play"))
       {
-        tms_play_ffmpeg *ffmpeg;
-        if (!strcasecmp(request_text, "play.file"))
+        /* 已经指定了文件，在播放过程中 */
+        if (ffmpeg)
+        {
+          if (ffmpeg->playing == 1)
+          {
+            /* 当前是播放状态，进入暂停状态 */
+            g_atomic_int_set(&ffmpeg->playing, 2);
+            /* 通知暂停了媒体播放线程 */
+            json_t *event = json_object();
+            json_object_set_new(event, "tms_play_event", json_string("pause.play"));
+            gateway->push_event(msg->handle, &janus_plugin_tms_play, msg->transaction, event, NULL);
+          }
+          else if (ffmpeg->playing == 2)
+          {
+            /* 当前是暂停状态，进入播放状态 */
+            g_atomic_int_set(&ffmpeg->playing, 1);
+            /* 通知恢复了媒体播放线程 */
+            json_t *event = json_object();
+            json_object_set_new(event, "tms_play_event", json_string("resume.play"));
+            gateway->push_event(msg->handle, &janus_plugin_tms_play, msg->transaction, event, NULL);
+          }
+          else if (ffmpeg->playing == 0)
+          {
+            /* 当前是停止状态？*/
+          }
+        }
+        else
         {
           /* 指定要播放的文件 */
-          char fullpath[512]; // 要播放文件的完整路径
-          memset(fullpath, 9, 512);
           json_t *file = json_object_get(root, "file");
           const char *filename = json_string_value(file);
-          g_snprintf(fullpath, 512, "%s/%s", media_root, filename);
 
-          /* 应该检查文件是否存在！！！ */
-          JANUS_LOG(LOG_VERB, "[TmsPlay] 准备播放文件%s\n", fullpath);
+          tms_play_ffmpeg_create(&ffmpeg, session->handle, filename, session->create_time_us);
 
-          /* 要求播放指定的文件 */
-          if (!session->ffmpeg)
-          {
-            ffmpeg = g_malloc0(sizeof(tms_play_ffmpeg));
-            ffmpeg->handle = msg->handle;
-            ffmpeg->webrtcup = 1;
-            ffmpeg->playing = 1;
-            ffmpeg->destroyed = 0;
-            ffmpeg->nb_audio_rtps = 0;
-            ffmpeg->base_timestamp = session->create_time_us; // 在一次会话中，为了支持多次播放，采用会话的创建时间作为媒体RTP时间戳的基础时间
-            session->ffmpeg = ffmpeg;
+          session->ffmpeg = ffmpeg;
+          janus_refcount_increase(&ffmpeg->ref); // 会话使用，引用加1
 
-            janus_mutex_init(&ffmpeg->mutex);
-            janus_refcount_init(&ffmpeg->ref, tms_play_ffmpeg_ref_free);
-            janus_refcount_increase(&ffmpeg->ref); // 会话使用，引用加1
-          }
-          else
-          {
-            ffmpeg = session->ffmpeg;
-            g_free(ffmpeg->filename);
-          }
-          ffmpeg->filename = g_strdup(fullpath);
-
-          /* 启用ffmpeg媒体播放线程 */
+          /* 启用媒体播放线程 */
           GError *error = NULL;
           janus_refcount_increase(&ffmpeg->ref); // 线程使用，引用加1
           g_thread_try_new("TmsPlay ffmpeg thread", tms_play_async_ffmpeg_thread, ffmpeg, &error);
           if (error != NULL)
           {
-            JANUS_LOG(LOG_ERR, "启动ffmpeg媒体播放线程发生错误：%d (%s)\n", error->code, error->message ? error->message : "??");
+            JANUS_LOG(LOG_ERR, "[TmsPlay] 启动媒体播放线程发生错误：%d (%s)\n", error->code, error->message ? error->message : "??");
             janus_refcount_decrease(&ffmpeg->ref);
           }
           else
@@ -349,26 +378,14 @@ static void *tms_play_async_message_thread(void *data)
             /* 通知启用了媒体播放线程 */
             json_t *event = json_object();
             json_object_set_new(event, "tms_play_event", json_string("launch.play"));
-            int ret = gateway->push_event(msg->handle, &janus_plugin_tms_play, msg->transaction, event, NULL);
-            if (ret < 0)
-              JANUS_LOG(LOG_VERB, "[TmsPlay] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
+            gateway->push_event(msg->handle, &janus_plugin_tms_play, msg->transaction, event, NULL);
           }
         }
-        else if (!strcasecmp(request_text, "pause.file"))
-        {
-          g_atomic_int_set(&ffmpeg->playing, 2);
-        }
-        else if (!strcasecmp(request_text, "resume.file"))
-        {
-          g_atomic_int_set(&ffmpeg->playing, 1);
-          /* 通知恢复了媒体播放线程 */
-          json_t *event = json_object();
-          json_object_set_new(event, "tms_play_event", json_string("resume.play"));
-          int ret = gateway->push_event(msg->handle, &janus_plugin_tms_play, msg->transaction, event, NULL);
-          if (ret < 0)
-            JANUS_LOG(LOG_VERB, "[TmsPlay] >> 推送事件: %d (%s)\n", ret, janus_get_api_error(ret));
-        }
-        else if (!strcasecmp(request_text, "stop.file"))
+      }
+      else
+      {
+        /* 停止播放 */
+        if (ffmpeg && !strcasecmp(request_text, "stop.play"))
         {
           g_atomic_int_set(&ffmpeg->playing, 0);
         }
@@ -633,12 +650,12 @@ struct janus_plugin_result *janus_plugin_handle_message_tms_play(janus_plugin_se
   }
 
   /* 放入队列异步处理的消息 */
-  if (!strcasecmp(request_text, "request.offer") || NULL != strstr(request_text, ".file"))
+  if (!strcasecmp(request_text, "request.offer") || NULL != strstr(request_text, ".play"))
   {
-    if (NULL != strstr(request_text, ".file"))
+    if (NULL != strstr(request_text, ".play"))
     {
       /* 检查指定的播放文件 */
-      if (!strcasecmp(request_text, "play.file"))
+      if (!strcasecmp(request_text, "ctrl.play"))
       {
         json_t *file = json_object_get(root, "file");
         if (NULL == file)

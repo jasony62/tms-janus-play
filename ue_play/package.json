@@ -1,7 +1,7 @@
 {
   "name": "tms-janus-play",
   "description": "Tms-Janus媒体服务器播放文件客户端",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "main": "lib/index.js",
   "files": [
     "lib"

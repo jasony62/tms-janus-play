@@ -5,6 +5,12 @@ export const TmsJanusPlayVueMixin = {
       play: { channelState: { webrtcUp: false }, playState: { duration: -1 } },
     }
   },
+  computed: {
+    runActionLabel: function() {
+      let { state } = this.play.playState
+      return state === 'paused' ? '恢复' : state === 'going' ? '暂停' : '播放'
+    },
+  },
   methods: {
     connect() {
       this.play.connect(this.server)
@@ -18,19 +24,13 @@ export const TmsJanusPlayVueMixin = {
     hangupWebrtc() {
       this.play.hangupWebrtc()
     },
-    probeFile() {
+    probe() {
       this.play.probe(this.file)
     },
-    playFile() {
-      this.play.play(this.file)
+    control() {
+      this.play.control(this.file)
     },
-    pauseFile() {
-      this.play.pause()
-    },
-    resumeFile() {
-      this.play.resume()
-    },
-    stopFile() {
+    stop() {
       this.play.stop()
     },
   },

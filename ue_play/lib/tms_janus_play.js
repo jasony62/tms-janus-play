@@ -102,8 +102,13 @@ function onRemoteStream(stream) {
   Janus.debug(' ::: Got a remote stream :::')
   Janus.debug(stream)
   Janus.attachMediaStream(this.elemMedia, stream)
-  if (this.playState.state === 'paused' && this.onmute) this.onmute()
-  else if (this.playState.state === 'going' && this.onunmute) this.onunmute()
+  let [videoTrack] = stream.getVideoTracks()
+  /* 通知视频状态发生变化 */
+  if (!videoTrack || videoTrack.muted) {
+    if (this.onVideoMute) this.onVideoMute()
+  } else {
+    if (this.onVideoUnmute) this.onVideoUnmute(videoTrack)
+  }
 }
 
 function onPluginMessage(msg, remoteJsep) {
@@ -131,6 +136,8 @@ function onPluginMessage(msg, remoteJsep) {
     })
   } else if (msg.tms_play_event === 'launch.play') {
     this.playState.state = 'going'
+  } else if (msg.tms_play_event === 'pause.play') {
+    this.playState.state = 'paused'
   } else if (msg.tms_play_event === 'resume.play') {
     this.playState.state = 'going'
   } else if (msg.tms_play_event === 'exit.play') {
@@ -174,7 +181,13 @@ class PlayState {
 }
 
 export class TmsJanusPlay {
-  constructor({ debug = 'all', elemMedia, onmute = Janus.noop, onunmute = Janus.noop, onwebrtcstate = Janus.noop }) {
+  constructor({
+    debug = 'all',
+    elemMedia,
+    onVideoMute = Janus.noop,
+    onVideoUnmute = Janus.noop,
+    onwebrtcstate = Janus.noop,
+  }) {
     this.plugin = PLUGIN_NAME
     this.janus = null
     this.pluginHandle = null
@@ -184,8 +197,8 @@ export class TmsJanusPlay {
     this.onwebrtcstate = onwebrtcstate
     this.channelState = new ChannelState()
     this.playState = new PlayState()
-    this.onmute = onmute.bind(this)
-    this.onunmute = onunmute.bind(this)
+    this.onVideoMute = onVideoMute.bind(this)
+    this.onVideoUnmute = onVideoUnmute.bind(this)
     Janus.init({
       debug,
       callback: () => {
@@ -205,14 +218,8 @@ export class TmsJanusPlay {
   get isWebrtcUp() {
     return this.channelState.webrtcUp
   }
-  get isPlayEnable() {
-    return this.isWebrtcUp && this.playState.state === 'ready'
-  }
-  get isPauseEnable() {
-    return this.isWebrtcUp && this.playState.state === 'going'
-  }
-  get isResumeEnable() {
-    return this.isWebrtcUp && this.playState.state === 'paused'
+  get isControlEnable() {
+    return this.isWebrtcUp && this.playState.file
   }
   get isStopEnable() {
     return (this.isWebrtcUp && this.playState.state === 'going') || this.playState.state === 'paused'
@@ -241,6 +248,7 @@ export class TmsJanusPlay {
     this.channelState.sending = true
     return hangupWebrtc(this).then(() => (this.channelState.sending = false))
   }
+  /*获取文件信息*/
   probe(file) {
     this.channelState.sending = true
     this.playState.file = file
@@ -260,28 +268,23 @@ export class TmsJanusPlay {
       },
     })
   }
-  play() {
+  /*控制播放，开始，暂停，恢复*/
+  control() {
+    let { file, state } = this.playState
     this.pluginHandle.send({
       message: {
-        request: 'play.file',
-        file: this.playState.file,
+        request: 'ctrl.play',
+        file,
+      },
+      success: () => {
+        if (state === 'going') this.playState.state = 'paused'
       },
     })
   }
-  pause() {
-    this.pluginHandle.send({
-      message: { request: 'pause.file' },
-      success: () => (this.playState.state = 'paused'),
-    })
-  }
-  resume() {
-    this.pluginHandle.send({
-      message: { request: 'resume.file' },
-    })
-  }
+  /*停止播放*/
   stop() {
     this.pluginHandle.send({
-      message: { request: 'stop.file' },
+      message: { request: 'stop.play' },
       success: () => (this.playState.state = 'ready'),
     })
   }

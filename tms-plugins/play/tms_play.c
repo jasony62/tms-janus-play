@@ -237,7 +237,7 @@ clean:
   if (ictx)
     avformat_close_input(&ictx);
 
-  JANUS_LOG(LOG_VERB, "退出TmsPlay\n");
+  JANUS_LOG(LOG_VERB, "[TmsPlay] 退出播放线程\n");
 
   return 0;
 }
