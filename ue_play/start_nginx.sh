@@ -2,7 +2,7 @@
 
 echo "启动 Nginx server for tms-janus-player"
 
-if [ "$ssl_certificate" != "" -a "$ssl_certificate_key" != "" ]
+if [ "$ssl_certificate" != "" -a "$ssl_certificate_key" != "" ];
 then
     echo "启用 Nginx ssl 端口"
     sed -i "s/#ssl_server//" /etc/nginx/nginx.conf.template

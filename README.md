@@ -6,6 +6,8 @@
 
 # 环境准备
 
+> git clone --depth=1 https://github.com/jasony62/tms-janus-play.git
+
 项目目录下新建`docker-compose.override.yml`文件。
 
 在 linux 环境下，服务 janus 应使用的网络模式为`host`，否则会报错（和 mDNS 有关，目前不知如何怎样解决）。但是，在 Mac 和 Windows 环境下不支持`host`模式。
@@ -30,13 +32,17 @@ debug_level=4
 
 ## ssl
 
+需要配置 ssl 证书。
+
 webrtc 要求通过 ssl 访问。
+
+在`janus`配置文件`/opt/janus/etc/janus/janus.transport.http.jcfg`设置是否开通`https`端口。如果要开通`https`，那么需要指定使用的`ssl`证书。
 
 ## coturn
 
 为了在互联网上实现点对点通信，需要支持穿越 Nat，配置自己的`stun`服务。
 
-在有公网 ip 的服务器上，用下面的命令行启动`instrumentisto/coturn`容器。
+在有公网 ip 的 linux 服务器上（否则 network 不支持 host 方式），用下面的命令行启动`instrumentisto/coturn`容器。
 
 > docker run --name coturn-test --network=host instrumentisto/coturn
 
@@ -45,6 +51,8 @@ webrtc 要求通过 ssl 访问。
 https://github.com/coturn/coturn
 
 https://github.com/instrumentisto/coturn-docker-image
+
+在`local.env`文件中指定 stun 服务的地址和端口。
 
 # 制作镜像
 
